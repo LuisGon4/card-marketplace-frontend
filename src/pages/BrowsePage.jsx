@@ -2,17 +2,19 @@ import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 
-// Sort control (plan §5 Step 9). Two fixed options, and — deliberately — the
+// Sort control (plan §5 Step 9). Fixed options, and — deliberately — each
 // value carries the Spring-style direction suffix rather than a bare field
 // name. BACKEND.md §1 ("sort" row): "Optional direction suffix ,asc/,desc
-// ... only the field is validated" — so `createdAt,desc` is a legal request,
-// and Step 8 already shipped that exact value as the fixed default. Keeping
-// the suffix here keeps the "Newest first" default consistent with Step 8
-// instead of silently flipping to ascending. Do not "simplify" this back to
-// a bare field name.
+// ... only the field is validated" — so `createdAt,desc` and `askingPrice,desc`
+// are both legal requests, and Step 8 already shipped `createdAt,desc` as the
+// fixed default. Keeping the suffix here keeps the "Newest first" default
+// consistent with Step 8, and lets the two `askingPrice` options share a field
+// while differing only in direction. Do not "simplify" this back to a bare
+// field name.
 const SORT_OPTIONS = [
   { value: 'createdAt,desc', label: 'Newest first' },
   { value: 'askingPrice,asc', label: 'Price: low to high' },
+  { value: 'askingPrice,desc', label: 'Price: high to low' },
 ]
 const DEFAULT_SORT = SORT_OPTIONS[0].value
 const VALID_SORT_VALUES = new Set(SORT_OPTIONS.map((option) => option.value))
