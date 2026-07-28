@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
@@ -100,6 +101,38 @@ function BrowsePage() {
   const sort = clampSort(searchParams.get('sort'))
   const cardName = readCardName(searchParams)
 
+  // Draft state (plan §3.1): the field's value on every keystroke. It never
+  // touches the URL and never fires a request — only a submit (Enter or the
+  // Search button) commits it into `cardName`. This is what keeps typing at
+  // zero requests.
+  const [draft, setDraft] = useState(cardName)
+  // The Clear button unmounts itself the instant a search clears (it only
+  // renders while `cardName !== ''`), so its handler needs somewhere to
+  // send focus. A ref set on the input, read only inside the handler —
+  // never during render (plan §3.5, react-hooks/refs).
+  const inputRef = useRef(null)
+
+  // Guarded adjust-during-render sync (plan §3.3): keeps the box honest
+  // against back/forward, bookmarks, and Clear. `reconciled` remembers the
+  // last URL value already mirrored into `draft`; when the committed
+  // `cardName` changes underneath us (navigation, not typing), this block
+  // corrects both `reconciled` and `draft` in the same render, before
+  // anything paints — no stale flash, no remount, no focus loss.
+  //
+  // Do NOT convert this to a useEffect: an effect would paint the stale
+  // draft first and correct it a tick later (the documented anti-pattern).
+  // Do NOT replace it with key={cardName} on the field either: the key
+  // would also change on submit, which would unmount the focused input and
+  // drop focus to <body> — exactly the failure the plan rejected this for.
+  // The `if` here is what keeps this lint-clean under
+  // react-hooks/set-state-in-render, which only flags *unconditional*
+  // setState-in-render.
+  const [reconciled, setReconciled] = useState(cardName)
+  if (reconciled !== cardName) {
+    setReconciled(cardName)
+    setDraft(cardName)
+  }
+
   const path = (() => {
     const params = new URLSearchParams()
     params.set('page', String(page))
@@ -150,15 +183,45 @@ function BrowsePage() {
     })
   }
 
-  // Shared by both "Clear search" entry points (beside the field in Step B,
-  // and the empty-state button here). `sort` is never touched. The
-  // focus-move onto the search input belongs to Step B, once the field
-  // exists.
+  // Shared by both "Clear search" entry points: beside the field (only
+  // while a search is committed) and the empty-state button. `sort` is
+  // never touched.
   function clearSearch() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       next.delete('cardName')
       next.set('page', '0')
+      return next
+    })
+    // The button beside the field unmounts itself the moment this runs (it
+    // only renders while cardName !== ''), so send focus to the input
+    // rather than letting it fall to <body> (plan §3.5).
+    inputRef.current?.focus()
+  }
+
+  function handleSearchSubmit(event) {
+    event.preventDefault()
+    const q = draft.trim()
+    // Re-submitting an unchanged query from page 0 would produce a
+    // byte-identical URL — skip the navigation so it doesn't stuff the
+    // history stack or fire a duplicate request (plan §5 Step 4). Still
+    // normalize the box to the trimmed value: nothing else will. The
+    // guarded sync (above) only fires when the *committed* `cardName`
+    // changes, and this path never changes it, so without this line a
+    // trailing-space resubmit would leave `draft` permanently untrimmed.
+    if (q === cardName && page === 0) {
+      setDraft(q)
+      return
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (q === '') {
+        next.delete('cardName')
+      } else {
+        next.set('cardName', q)
+      }
+      next.set('page', '0')
+      // sort is never touched by a search submit.
       return next
     })
   }
@@ -167,22 +230,65 @@ function BrowsePage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-zinc-900">Browse listings</h1>
 
-      <div className="flex items-center gap-2">
-        <label htmlFor="sort" className="text-sm text-zinc-700">
-          Sort by
-        </label>
-        <select
-          id="sort"
-          value={sort}
-          onChange={handleSortChange}
-          className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-        >
-          {SORT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      {/* Filter bar (plan §3.2): independent control groups, each owning its
+          own commit behaviour. Search narrows the set and sits left; sort
+          orders the set and sits right — leaving the left edge free for the
+          five filters this cycle deliberately does not build (plan §3.6). */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <form role="search" onSubmit={handleSearchSubmit} className="flex flex-col gap-1">
+          <label htmlFor="cardName" className="text-sm text-zinc-700">
+            Card name
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={inputRef}
+              type="search"
+              id="cardName"
+              name="cardName"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              enterKeyHint="search"
+              spellCheck={false}
+              placeholder="Charizard"
+              className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:w-64"
+            />
+            <button
+              type="submit"
+              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            >
+              Search
+            </button>
+            {/* Only while a search is committed — clearing an already-empty
+                box has nothing to do (plan §5 Step 4 / §6 decision 2). */}
+            {cardName !== '' && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </form>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="sort" className="text-sm text-zinc-700">
+            Sort by
+          </label>
+          <select
+            id="sort"
+            value={sort}
+            onChange={handleSortChange}
+            className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Single live region for the whole page (plan §3 a11y) — loading text
