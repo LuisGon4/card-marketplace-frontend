@@ -11,6 +11,13 @@ if (!BASE_URL) {
   )
 }
 
+// Exported so callers that need the API origin outside of an HTTP request —
+// e.g. the OAuth redirect, which is a `window.location` assignment, not a
+// fetch — read it from the same source instead of re-parsing the env var
+// (and risking a hardcoded host drifting in). This does not change any
+// request behavior above.
+export const API_BASE_URL = BASE_URL
+
 /** Thrown for any non-2xx response. `.message` is the server's plain-text body. */
 export class ApiError extends Error {
   constructor(status, message) {
