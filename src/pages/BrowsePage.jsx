@@ -42,12 +42,52 @@ function clampSort(rawSort) {
   return VALID_SORT_VALUES.has(rawSort) ? rawSort : DEFAULT_SORT
 }
 
-function summaryText(page, totalPages, totalElements) {
+// Read + clamp `cardName` the same way: the URL is untrusted input, and
+// absent / empty / whitespace-only all collapse to '' = "no search". Clamped
+// on read only — the address bar is never rewritten (plan §4).
+function readCardName(searchParams) {
+  return (searchParams.get('cardName') ?? '').trim()
+}
+
+// The single source of truth for the §3.4 heading/body 2×2 (page > 0 ×
+// search active) — stated once here rather than re-derived separately by
+// the heading, the body, and the action buttons, which is what let "No
+// listings yet" slip through on a search miss in the first place.
+function emptyStateCopy(page, cardName) {
+  const hasSearch = cardName !== ''
+  // `page > 0` takes heading precedence over an active search: "you're past
+  // the end" is the more actionable fact regardless of whether the query is
+  // fine (plan §3.4).
+  if (page > 0) {
+    return {
+      heading: 'Nothing on this page',
+      body: hasSearch
+        ? `No more results for “${cardName}” past this page.`
+        : 'This page is past the end of the results.',
+    }
+  }
+  if (hasSearch) {
+    return {
+      heading: `No listings match “${cardName}”`,
+      body: 'Check the spelling, or search a shorter part of the name.',
+    }
+  }
+  return {
+    heading: 'No listings yet',
+    body: "When sellers post cards, they'll appear here.",
+  }
+}
+
+function summaryText(page, totalPages, totalElements, cardName) {
   const listingWord = totalElements === 1 ? 'listing' : 'listings'
+  // The search query is echoed into the announcement itself (plan §3.7):
+  // this line lives in the page's only live region, so it's the only
+  // confirmation a screen-reader user gets that their search was applied.
+  const querySuffix = cardName ? ` matching “${cardName}”` : ''
   // Guard: an empty result set has totalPages === 0, so "Page 1 of 0" would
   // be nonsense — omit the page fragment rather than render it (plan §4).
-  if (totalPages === 0) return `${totalElements} ${listingWord}`
-  return `Showing page ${page + 1} of ${totalPages} · ${totalElements} ${listingWord}`
+  if (totalPages === 0) return `${totalElements} ${listingWord}${querySuffix}`
+  return `Showing page ${page + 1} of ${totalPages} · ${totalElements} ${listingWord}${querySuffix}`
 }
 
 function BrowsePage() {
@@ -58,12 +98,16 @@ function BrowsePage() {
   // without ever touching history.
   const page = clampPage(searchParams.get('page'))
   const sort = clampSort(searchParams.get('sort'))
+  const cardName = readCardName(searchParams)
 
   const path = (() => {
     const params = new URLSearchParams()
     params.set('page', String(page))
     params.set('size', '20')
     params.set('sort', sort)
+    // Sent only when non-empty — `cardName=` is not a filter the user asked
+    // for, and its server behaviour is undocumented (plan §4).
+    if (cardName !== '') params.set('cardName', cardName)
     return `/api/listings?${params.toString()}`
   })()
 
@@ -77,6 +121,12 @@ function BrowsePage() {
   // Forward availability comes from the response's own `hasNext` only — never
   // derived from `totalPages` (plan §4 `PageResponse` handling).
   const hasNext = data?.hasNext ?? false
+  // Booleans driving the §3.4 empty-state table, computed once and reused by
+  // the heading/body (via `emptyStateCopy`) and the action buttons below, so
+  // there's a single source of truth instead of three parallel copies.
+  const isPastEnd = page > 0
+  const hasSearch = cardName !== ''
+  const emptyState = isEmpty ? emptyStateCopy(page, cardName) : null
 
   function goToPage(nextPage) {
     // Push a history entry per change (Luis's decision — no `{ replace: true }`)
@@ -95,6 +145,19 @@ function BrowsePage() {
       next.set('sort', event.target.value)
       // Changing sort resets to page 0 — a stale page number from the old
       // sort order would otherwise point at unrelated results.
+      next.set('page', '0')
+      return next
+    })
+  }
+
+  // Shared by both "Clear search" entry points (beside the field in Step B,
+  // and the empty-state button here). `sort` is never touched. The
+  // focus-move onto the search input belongs to Step B, once the field
+  // exists.
+  function clearSearch() {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('cardName')
       next.set('page', '0')
       return next
     })
@@ -129,7 +192,7 @@ function BrowsePage() {
         {loading && <p className="text-sm text-zinc-600">Loading listings…</p>}
         {loaded && (
           <p className="text-sm text-zinc-600">
-            {summaryText(page, data.totalPages, data.totalElements)}
+            {summaryText(page, data.totalPages, data.totalElements, cardName)}
           </p>
         )}
       </div>
@@ -150,26 +213,48 @@ function BrowsePage() {
       )}
 
       {isEmpty && (
+        // Four distinct situations (plan §3.4), not one message reused: an
+        // empty catalogue, a bookmarked page past the end, a search miss,
+        // and a search miss past the end. Telling a search miss "No
+        // listings yet" would be false — the marketplace isn't empty, the
+        // query just didn't match anything. `page > 0` takes heading
+        // precedence over an active search: "you're past the end" is the
+        // more actionable fact regardless of whether the query is fine
+        // (see `emptyStateCopy`, the single source of truth for that table).
+        // Stays outside the live region and keeps its dashed-border
+        // treatment — no `aria-live` / `role` added here.
         <div className="space-y-3 border border-dashed border-zinc-300 p-8 text-center">
           <div className="space-y-1">
-            <h2 className="text-base font-medium text-zinc-900">No listings yet</h2>
-            <p className="text-sm text-zinc-600">
-              {page > 0
-                ? 'There are no listings on this page.'
-                : "When sellers post cards, they'll appear here."}
-            </p>
+            <h2 className="break-words text-base font-medium text-zinc-900">
+              {emptyState.heading}
+            </h2>
+            <p className="break-words text-sm text-zinc-600">{emptyState.body}</p>
           </div>
           {/* A legitimately empty page N (e.g. the catalogue shrank after
-              this page was bookmarked) is a different situation from an
-              empty catalogue at page 0 — offer a way back (plan §3). */}
-          {page > 0 && (
-            <button
-              type="button"
-              onClick={() => goToPage(0)}
-              className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              Back to first page
-            </button>
+              this page was bookmarked, or a search only has fewer pages
+              than expected) is a different situation from an empty result
+              at page 0 — offer a way back (plan §3.4). */}
+          {(isPastEnd || hasSearch) && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {isPastEnd && (
+                <button
+                  type="button"
+                  onClick={() => goToPage(0)}
+                  className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                >
+                  Back to first page
+                </button>
+              )}
+              {hasSearch && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
