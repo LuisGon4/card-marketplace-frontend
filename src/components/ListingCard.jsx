@@ -48,7 +48,10 @@ function ListingCard({
   const showFlagBadge = marketPrice !== null && priceFlagged === true
 
   return (
-    <article className="rounded border border-zinc-200 p-4">
+    // h-full + flex column so every card fills its grid row and the seller
+    // meta pins to the bottom (mt-auto). Without this, cards with a shorter
+    // description — or none at all — end up shorter than their neighbours.
+    <article className="flex h-full flex-col rounded border border-zinc-200 p-4">
       {thumbnailUrl === null ? (
         // bg-zinc-50 is the "nothing here" surface (plan §3 palette); the
         // bg-zinc-100 below is the letterbox behind a real image.
@@ -100,7 +103,7 @@ function ListingCard({
         <p className="mt-3 line-clamp-2 text-sm text-zinc-700">{description}</p>
       )}
 
-      <div className="mt-3 space-y-0.5 text-sm text-zinc-600">
+      <div className="mt-auto space-y-0.5 pt-3 text-sm text-zinc-600">
         <p>{sellerUsername}</p>
         <p>{location}</p>
       </div>

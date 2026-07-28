@@ -73,7 +73,9 @@ function BrowsePage() {
       )}
 
       {loaded && listings.length > 0 && (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        // auto-rows-fr equalises every row, so cards match across rows too,
+        // not just within one. Each ListingCard is h-full to fill its cell.
+        <ul className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {listings.map((listing) => (
             <li key={listing.id}>
               <ListingCard {...listing} />
