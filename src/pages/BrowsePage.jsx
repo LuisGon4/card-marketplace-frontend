@@ -297,7 +297,7 @@ function BrowsePage() {
       <div role="status" aria-live="polite">
         {loading && <p className="text-sm text-zinc-600">Loading listings…</p>}
         {loaded && (
-          <p className="text-sm text-zinc-600">
+          <p className="break-words text-sm text-zinc-600">
             {summaryText(page, data.totalPages, data.totalElements, cardName)}
           </p>
         )}
