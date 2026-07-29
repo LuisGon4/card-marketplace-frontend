@@ -3,32 +3,7 @@
 // Not a <Link> this cycle: listing detail doesn't exist yet, so an anchor
 // here would 404. The detail cycle converts this to a <Link>.
 
-// TODO(Luis): currency is assumed USD — askingPrice/marketPrice are bare
-// numbers with no currency field in BACKEND.md. Confirm before this ships
-// beyond the demo. Hardcoded en-US/USD until then.
-// Built once at module load rather than per call: this renders twice per card
-// across a grid of 20, and again on every sort or page change.
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-})
-
-function formatPrice(value) {
-  return currencyFormatter.format(value)
-}
-
-// Raw enum -> readable label. Falls back to the raw string for any value
-// not in this map, so a future backend enum addition degrades to readable
-// text instead of rendering blank (plan §4).
-const PRINTING_LABELS = {
-  NORMAL: 'Normal',
-  HOLOFOIL: 'Holofoil',
-  REVERSE_HOLOFOIL: 'Reverse holofoil',
-}
-
-function printingLabel(printing) {
-  return PRINTING_LABELS[printing] ?? printing
-}
+import { formatPrice, printingLabel } from '../lib/listings'
 
 function ListingCard({
   cardName,

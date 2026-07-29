@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CONDITION_OPTIONS, PRINTING_OPTIONS } from '../lib/listings'
 
 // One shape for every free-text filter control (plans/filters.md §5 Step
 // 2). cardName is the only caller today — setName's control is deferred
@@ -26,6 +27,33 @@ function TextFilterField({ id, name, label, placeholder, value, onChange, ref })
         placeholder={placeholder}
         className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       />
+    </div>
+  )
+}
+
+// One shape for every single-select enum filter (condition, printing).
+// `anyLabel` is the value="" row's text; `options` is one of the
+// CONDITION_OPTIONS / PRINTING_OPTIONS arrays from src/lib/listings.js.
+function SelectFilterField({ id, name, label, anyLabel, options, value, onChange }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm text-zinc-700">
+        {label}
+      </label>
+      <select
+        id={id}
+        name={name}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        <option value="">{anyLabel}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }
@@ -126,10 +154,9 @@ function FilterBar({
         onSubmit={handleApply}
         className="space-y-4 rounded border border-zinc-200 p-4"
       >
-        {/* Six-filter grid (plans/filters.md §3.2). Only cardName exists
-            this step — setName is deferred, condition/printing/minPrice/
-            maxPrice land in Steps 4-5 — so the grid holds one cell today
-            and gains cells later without a layout change. */}
+        {/* Six-filter grid (plans/filters.md §3.2). setName is deferred and
+            minPrice/maxPrice land in Step 5 — so the grid gains its
+            remaining cells later without a layout change. */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <TextFilterField
             id="cardName"
@@ -139,6 +166,24 @@ function FilterBar({
             value={draft.cardName}
             onChange={(value) => setDraft((prev) => ({ ...prev, cardName: value }))}
             ref={firstFieldRef}
+          />
+          <SelectFilterField
+            id="condition"
+            name="condition"
+            label="Condition"
+            anyLabel="Any condition"
+            options={CONDITION_OPTIONS}
+            value={draft.condition}
+            onChange={(value) => setDraft((prev) => ({ ...prev, condition: value }))}
+          />
+          <SelectFilterField
+            id="printing"
+            name="printing"
+            label="Printing"
+            anyLabel="Any printing"
+            options={PRINTING_OPTIONS}
+            value={draft.printing}
+            onChange={(value) => setDraft((prev) => ({ ...prev, printing: value }))}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">

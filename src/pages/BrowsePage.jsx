@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
+import { CONDITION_VALUES, PRINTING_VALUES, formatPrice, printingLabel } from '../lib/listings'
 
 // Sort control (plan §5 Step 9). Fixed options, and — deliberately — each
 // value carries the Spring-style direction suffix rather than a bare field
@@ -50,12 +51,6 @@ function clampSort(rawSort) {
 // single definition of "which six params count as a filter."
 const FILTER_KEYS = ['cardName', 'setName', 'condition', 'printing', 'minPrice', 'maxPrice']
 
-// The value/label option lists for the two <select>s land in Step 4
-// alongside src/lib/listings.js; until then these sets exist only to
-// validate what comes off the URL.
-const CONDITION_VALUES = new Set(['NM', 'LP', 'MP', 'HP', 'DMG'])
-const PRINTING_VALUES = new Set(['NORMAL', 'HOLOFOIL', 'REVERSE_HOLOFOIL'])
-
 // Same clamp-on-read treatment as clampPage / clampSort, generalized to
 // take a key so cardName and setName share one function.
 function readTrimmed(searchParams, key) {
@@ -81,34 +76,6 @@ function readPrice(raw) {
   // the same class of guard as clampPage's Number.isSafeInteger check.
   if (!Number.isFinite(Number(s))) return ''
   return s
-}
-
-// Duplicated from ListingCard.jsx rather than shared, for now: this step
-// only touches this file (plans/filters.md §7). Step 4 promotes both this
-// and PRINTING_LABELS to src/lib/listings.js, and ListingCard.jsx switches
-// to importing from there too — a plain re-export from ListingCard.jsx isn't
-// an option because reactRefresh's allowConstantExport doesn't cover a `new
-// Intl.NumberFormat(...)` initializer (plans/filters.md §2, §6 decision 3).
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-})
-
-function formatPrice(value) {
-  return currencyFormatter.format(value)
-}
-
-// Also duplicated from ListingCard.jsx until Step 4 — needed here so the
-// results summary can render "printing Holofoil", matching what the card
-// itself shows (ListingCard.jsx line 77).
-const PRINTING_LABELS = {
-  NORMAL: 'Normal',
-  HOLOFOIL: 'Holofoil',
-  REVERSE_HOLOFOIL: 'Reverse holofoil',
-}
-
-function printingLabel(printing) {
-  return PRINTING_LABELS[printing] ?? printing
 }
 
 // Builds the "matching …" clause for the results summary, and the
@@ -386,10 +353,9 @@ function BrowsePage() {
           2): it owns the draft object, the six-key sync, and Apply/Clear
           all; this page owns everything that determines what gets fetched
           (the clamped URL values, the request, the summary, the empty
-          state). Only cardName has a control so far — setName is deferred
-          and condition/printing/minPrice/maxPrice land in Steps 4-5 — but
-          all six are already read from the URL, sent in the request, and
-          described below, via `committed`. */}
+          state). setName is deferred and minPrice/maxPrice land in Step 5 —
+          but all six are already read from the URL, sent in the request,
+          and described below, via `committed`. */}
       <FilterBar
         committed={committed}
         onApply={applyFilters}
