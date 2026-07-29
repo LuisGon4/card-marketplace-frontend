@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
+import FilterBar from '../components/FilterBar'
 
 // Sort control (plan §5 Step 9). Fixed options, and — deliberately — each
 // value carries the Spring-style direction suffix rather than a bare field
@@ -11,7 +12,8 @@ import ListingCard from '../components/ListingCard'
 // fixed default. Keeping the suffix here keeps the "Newest first" default
 // consistent with Step 8, and lets the two `askingPrice` options share a field
 // while differing only in direction. Do not "simplify" this back to a bare
-// field name.
+// field name. Passed to FilterBar as a prop rather than duplicated there —
+// don't add a second copy.
 const SORT_OPTIONS = [
   { value: 'createdAt,desc', label: 'Newest first' },
   { value: 'askingPrice,asc', label: 'Price: low to high' },
@@ -43,48 +45,202 @@ function clampSort(rawSort) {
   return VALID_SORT_VALUES.has(rawSort) ? rawSort : DEFAULT_SORT
 }
 
-// Read + clamp `cardName` the same way: the URL is untrusted input, and
-// absent / empty / whitespace-only all collapse to '' = "no search". Clamped
-// on read only — the address bar is never rewritten (plan §4).
-function readCardName(searchParams) {
-  return (searchParams.get('cardName') ?? '').trim()
+// The request builder below loops over this so no filter can be
+// special-cased, and describeFilters / emptyStateCopy reuse it as the
+// single definition of "which six params count as a filter."
+const FILTER_KEYS = ['cardName', 'setName', 'condition', 'printing', 'minPrice', 'maxPrice']
+
+// The value/label option lists for the two <select>s land in Step 4
+// alongside src/lib/listings.js; until then these sets exist only to
+// validate what comes off the URL.
+const CONDITION_VALUES = new Set(['NM', 'LP', 'MP', 'HP', 'DMG'])
+const PRINTING_VALUES = new Set(['NORMAL', 'HOLOFOIL', 'REVERSE_HOLOFOIL'])
+
+// Same clamp-on-read treatment as clampPage / clampSort, generalized to
+// take a key so cardName and setName share one function.
+function readTrimmed(searchParams, key) {
+  return (searchParams.get(key) ?? '').trim()
 }
 
-// The single source of truth for the §3.4 heading/body 2×2 (page > 0 ×
-// search active) — stated once here rather than re-derived separately by
-// the heading, the body, and the action buttons, which is what let "No
-// listings yet" slip through on a search miss in the first place.
-function emptyStateCopy(page, cardName) {
-  const hasSearch = cardName !== ''
-  // `page > 0` takes heading precedence over an active search: "you're past
-  // the end" is the more actionable fact regardless of whether the query is
-  // fine (plan §3.4).
+// Clamped case-sensitively on purpose: `?condition=nm` clamps to '', not
+// 'NM' — do not add a `.toUpperCase()` to "help" it match.
+function clampEnum(raw, validValues) {
+  return validValues.has(raw) ? raw : ''
+}
+
+// Deliberately does not cap decimal places or round anything — the
+// askingPrice column's enforced scale is undocumented, so capping would
+// invent a constraint the contract doesn't state.
+function readPrice(raw) {
+  const s = (raw ?? '').trim()
+  if (s === '') return ''
+  // Plain non-negative decimal only: no sign, no exponent, no thousands
+  // separator. Rejects '-1', '1e5', '1,000', '10.', '.', 'abc', and ''.
+  if (!/^\d*(\.\d+)?$/.test(s)) return ''
+  // A very long digit string passes the regex above but parses to Infinity —
+  // the same class of guard as clampPage's Number.isSafeInteger check.
+  if (!Number.isFinite(Number(s))) return ''
+  return s
+}
+
+// Duplicated from ListingCard.jsx rather than shared, for now: this step
+// only touches this file (plans/filters.md §7). Step 4 promotes both this
+// and PRINTING_LABELS to src/lib/listings.js, and ListingCard.jsx switches
+// to importing from there too — a plain re-export from ListingCard.jsx isn't
+// an option because reactRefresh's allowConstantExport doesn't cover a `new
+// Intl.NumberFormat(...)` initializer (plans/filters.md §2, §6 decision 3).
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+})
+
+function formatPrice(value) {
+  return currencyFormatter.format(value)
+}
+
+// Also duplicated from ListingCard.jsx until Step 4 — needed here so the
+// results summary can render "printing Holofoil", matching what the card
+// itself shows (ListingCard.jsx line 77).
+const PRINTING_LABELS = {
+  NORMAL: 'Normal',
+  HOLOFOIL: 'Holofoil',
+  REVERSE_HOLOFOIL: 'Reverse holofoil',
+}
+
+function printingLabel(printing) {
+  return PRINTING_LABELS[printing] ?? printing
+}
+
+// Builds the "matching …" clause for the results summary, and the
+// generic-miss body ("Filters: …") in the empty state — one source of truth
+// for "what is applied", rendered in both places (plans/filters.md §3.6).
+// FILTER_KEYS order throughout. The two price bounds collapse into a single
+// descriptor rather than two: "price from $10.00 to $50.00" reads as one
+// filter, not a pair.
+function describeFilters(committed) {
+  const parts = []
+  if (committed.cardName !== '') {
+    parts.push(`card name “${committed.cardName}”`)
+  }
+  if (committed.setName !== '') {
+    parts.push(`set name “${committed.setName}”`)
+  }
+  if (committed.condition !== '') {
+    // Raw code, not the expanded label — matches how ListingCard renders it
+    // (ListingCard.jsx line 77), so the summary and the card speak the same
+    // vocabulary.
+    parts.push(`condition ${committed.condition}`)
+  }
+  if (committed.printing !== '') {
+    parts.push(`printing ${printingLabel(committed.printing)}`)
+  }
+  const { minPrice, maxPrice } = committed
+  // Neutral "from"/"to" wording, not an en dash (inconsistent screen-reader
+  // handling) and no "and up" / "or less" / "inclusive" wording — a
+  // deliberate choice by Luis to keep the announcement short, not a hedge
+  // about boundary behaviour (all three price bounds are inclusive).
+  if (minPrice !== '' && maxPrice !== '') {
+    parts.push(`price from ${formatPrice(Number(minPrice))} to ${formatPrice(Number(maxPrice))}`)
+  } else if (minPrice !== '') {
+    parts.push(`price from ${formatPrice(Number(minPrice))}`)
+  } else if (maxPrice !== '') {
+    parts.push(`price up to ${formatPrice(Number(maxPrice))}`)
+  }
+  return parts
+}
+
+// The single source of truth for the §3.7 empty-state table (seven rows:
+// crossed range × page > 0/0 × how many filters are active) — stated once
+// here rather than re-derived separately by the heading, body, and action
+// buttons, which is what let "No listings yet" slip through on a search
+// miss in the first place (plans/search.md §3.4). Order matters: each
+// branch below runs only if the ones above it didn't match.
+function emptyStateCopy(page, committed) {
+  const hasFilters = FILTER_KEYS.some((key) => committed[key] !== '')
+
+  // Keyed on the *committed* values, not a draft — this describes the
+  // result actually on screen, which was produced by what was applied. (A
+  // later step adds a filter-bar price hint keyed on the *draft* instead,
+  // because that one describes what's about to be applied. Two different
+  // sources for two different questions; it looks like an inconsistency and
+  // isn't — plans/filters.md §3.7.)
+  //
+  // Crossed range takes top precedence over every other row, including
+  // page > 0: the backend returns 0 rows for a crossed range, not a 400,
+  // so when the bounds run backwards nothing else can explain why the
+  // page is empty — not the card name, not which page this is.
+  const isCrossedRange =
+    committed.minPrice !== '' &&
+    committed.maxPrice !== '' &&
+    Number(committed.minPrice) > Number(committed.maxPrice)
+  if (isCrossedRange) {
+    return {
+      heading: 'Min price is higher than max price',
+      body: 'Nothing can match a range that runs backwards. Swap the two amounts, or clear one.',
+    }
+  }
+
+  // `page > 0` takes heading precedence over active filters otherwise:
+  // "you're past the end" is the more actionable fact regardless of
+  // whether the filters are fine (plans/filters.md §3.7, same precedent as
+  // plans/search.md §3.4).
   if (page > 0) {
     return {
       heading: 'Nothing on this page',
-      body: hasSearch
-        ? `No more results for “${cardName}” past this page.`
+      body: hasFilters
+        ? 'No more results for these filters past this page.'
         : 'This page is past the end of the results.',
     }
   }
-  if (hasSearch) {
+
+  if (!hasFilters) {
     return {
-      heading: `No listings match “${cardName}”`,
+      heading: 'No listings yet',
+      body: "When sellers post cards, they'll appear here.",
+    }
+  }
+
+  // "Only X" means X is the single active filter among all six, checked
+  // against FILTER_KEYS so a future seventh filter can't silently break
+  // this test.
+  const isOnly = (key) =>
+    committed[key] !== '' && FILTER_KEYS.every((k) => k === key || committed[k] === '')
+
+  if (isOnly('cardName')) {
+    return {
+      heading: `No listings match “${committed.cardName}”`,
       body: 'Check the spelling, or search a shorter part of the name.',
     }
   }
+
+  // setName's matching semantics are unverified (TODO(Luis) A). This row
+  // deliberately gives the *opposite* advice from cardName's row above:
+  // cardName is a confirmed partial match, so "search a shorter part" is
+  // correct there; setName might be an exact match, so "try the full set
+  // name" is the only advice that's right under either answer. Relax to
+  // match cardName's wording once TODO(Luis) A closes as partial
+  // (plans/filters.md §3.7).
+  if (isOnly('setName')) {
+    return {
+      heading: `No listings match set “${committed.setName}”`,
+      body: 'Check the spelling, and try the full set name — “Base Set” rather than “Base”.',
+    }
+  }
+
   return {
-    heading: 'No listings yet',
-    body: "When sellers post cards, they'll appear here.",
+    heading: 'No listings match these filters',
+    body: `Filters: ${describeFilters(committed).join(', ')}. Try removing one.`,
   }
 }
 
-function summaryText(page, totalPages, totalElements, cardName) {
+function summaryText(page, totalPages, totalElements, committed) {
   const listingWord = totalElements === 1 ? 'listing' : 'listings'
-  // The search query is echoed into the announcement itself (plan §3.7):
-  // this line lives in the page's only live region, so it's the only
-  // confirmation a screen-reader user gets that their search was applied.
-  const querySuffix = cardName ? ` matching “${cardName}”` : ''
+  // Enumerates the active filters rather than counting them (plans/filters.md
+  // §3.6): this line lives in the page's only live region, so it's the only
+  // confirmation a screen-reader user gets about *which* filters were
+  // applied, not just that a number changed.
+  const descriptors = describeFilters(committed)
+  const querySuffix = descriptors.length > 0 ? ` matching ${descriptors.join(', ')}` : ''
   // Guard: an empty result set has totalPages === 0, so "Page 1 of 0" would
   // be nonsense — omit the page fragment rather than render it (plan §4).
   if (totalPages === 0) return `${totalElements} ${listingWord}${querySuffix}`
@@ -99,48 +255,39 @@ function BrowsePage() {
   // without ever touching history.
   const page = clampPage(searchParams.get('page'))
   const sort = clampSort(searchParams.get('sort'))
-  const cardName = readCardName(searchParams)
+  const cardName = readTrimmed(searchParams, 'cardName')
+  const setName = readTrimmed(searchParams, 'setName')
+  const condition = clampEnum(searchParams.get('condition'), CONDITION_VALUES)
+  const printing = clampEnum(searchParams.get('printing'), PRINTING_VALUES)
+  const minPrice = readPrice(searchParams.get('minPrice'))
+  const maxPrice = readPrice(searchParams.get('maxPrice'))
+  // All six filters, collapsed to one object — the request loop, the
+  // summary, and the empty-state table all key off this rather than six
+  // separate parameters (plans/filters.md §5 Step 1).
+  const committed = { cardName, setName, condition, printing, minPrice, maxPrice }
 
-  // Draft state (plan §3.1): the field's value on every keystroke. It never
-  // touches the URL and never fires a request — only a submit (Enter or the
-  // Search button) commits it into `cardName`. This is what keeps typing at
-  // zero requests.
-  const [draft, setDraft] = useState(cardName)
-  // The Clear button unmounts itself the instant a search clears (it only
-  // renders while `cardName !== ''`), so its handler needs somewhere to
-  // send focus. A ref set on the input, read only inside the handler —
-  // never during render (plan §3.5, react-hooks/refs).
-  const inputRef = useRef(null)
-
-  // Guarded adjust-during-render sync (plan §3.3): keeps the box honest
-  // against back/forward, bookmarks, and Clear. `reconciled` remembers the
-  // last URL value already mirrored into `draft`; when the committed
-  // `cardName` changes underneath us (navigation, not typing), this block
-  // corrects both `reconciled` and `draft` in the same render, before
-  // anything paints — no stale flash, no remount, no focus loss.
-  //
-  // Do NOT convert this to a useEffect: an effect would paint the stale
-  // draft first and correct it a tick later (the documented anti-pattern).
-  // Do NOT replace it with key={cardName} on the field either: the key
-  // would also change on submit, which would unmount the focused input and
-  // drop focus to <body> — exactly the failure the plan rejected this for.
-  // The `if` here is what keeps this lint-clean under
-  // react-hooks/set-state-in-render, which only flags *unconditional*
-  // setState-in-render.
-  const [reconciled, setReconciled] = useState(cardName)
-  if (reconciled !== cardName) {
-    setReconciled(cardName)
-    setDraft(cardName)
-  }
+  // The card-name field's DOM node, so a Clear-all triggered from either
+  // entry point (FilterBar's own button, or the empty state's) can move
+  // focus there after the button that was clicked unmounts itself. Created
+  // here rather than inside FilterBar because both entry points that need
+  // it live in this file; FilterBar just attaches it to the input
+  // (plans/filters.md §5 Step 2). Read only inside a handler, never during
+  // render (plan §3.5, react-hooks/refs).
+  const firstFieldRef = useRef(null)
 
   const path = (() => {
     const params = new URLSearchParams()
     params.set('page', String(page))
     params.set('size', '20')
     params.set('sort', sort)
-    // Sent only when non-empty — `cardName=` is not a filter the user asked
-    // for, and its server behaviour is undocumented (plan §4).
-    if (cardName !== '') params.set('cardName', cardName)
+    // Each filter is sent only when non-empty, via one loop over
+    // FILTER_KEYS so no filter can be special-cased — `condition=` is never
+    // sent, `minPrice=` is never sent, etc. An empty value's server
+    // behaviour is undocumented, and omission is the documented way to
+    // disable one side of the price range.
+    for (const key of FILTER_KEYS) {
+      if (committed[key] !== '') params.set(key, committed[key])
+    }
     return `/api/listings?${params.toString()}`
   })()
 
@@ -154,12 +301,13 @@ function BrowsePage() {
   // Forward availability comes from the response's own `hasNext` only — never
   // derived from `totalPages` (plan §4 `PageResponse` handling).
   const hasNext = data?.hasNext ?? false
-  // Booleans driving the §3.4 empty-state table, computed once and reused by
-  // the heading/body (via `emptyStateCopy`) and the action buttons below, so
-  // there's a single source of truth instead of three parallel copies.
+  // Booleans driving the §3.7 empty-state table, computed once and reused
+  // by the heading/body (via `emptyStateCopy`) and the action buttons
+  // below, so there's a single source of truth instead of three parallel
+  // copies.
   const isPastEnd = page > 0
-  const hasSearch = cardName !== ''
-  const emptyState = isEmpty ? emptyStateCopy(page, cardName) : null
+  const hasFilters = FILTER_KEYS.some((key) => committed[key] !== '')
+  const emptyState = isEmpty ? emptyStateCopy(page, committed) : null
 
   function goToPage(nextPage) {
     // Push a history entry per change (Luis's decision — no `{ replace: true }`)
@@ -183,113 +331,74 @@ function BrowsePage() {
     })
   }
 
-  // Shared by both "Clear search" entry points: beside the field (only
-  // while a search is committed) and the empty-state button. `sort` is
-  // never touched.
-  function clearSearch() {
+  // Shared by both Clear entry points: beside the field (relabeled "Clear
+  // all" and gated on `hasFilters`, not just cardName — a button that reads
+  // "Clear" while silently deleting five other filters would lie about what
+  // it does, and gating it on cardName alone would leave a URL like
+  // `?condition=NM` with no visible way to clear it) and the empty-state
+  // button (relabeled "Clear all filters" below). Deletes every filter key,
+  // not just cardName, and never touches sort (plans/filters.md §5 Step 1).
+  function clearAllFilters() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      next.delete('cardName')
+      for (const key of FILTER_KEYS) {
+        next.delete(key)
+      }
       next.set('page', '0')
       return next
     })
     // The button beside the field unmounts itself the moment this runs (it
-    // only renders while cardName !== ''), so send focus to the input
+    // only renders while hasFilters is true), so send focus to the input
     // rather than letting it fall to <body> (plan §3.5).
-    inputRef.current?.focus()
+    firstFieldRef.current?.focus()
   }
 
-  function handleSearchSubmit(event) {
-    event.preventDefault()
-    const q = draft.trim()
-    // Re-submitting an unchanged query from page 0 would produce a
-    // byte-identical URL — skip the navigation so it doesn't stuff the
-    // history stack or fire a duplicate request (plan §5 Step 4). Still
-    // normalize the box to the trimmed value: nothing else will. The
-    // guarded sync (above) only fires when the *committed* `cardName`
-    // changes, and this path never changes it, so without this line a
-    // trailing-space resubmit would leave `draft` permanently untrimmed.
-    if (q === cardName && page === 0) {
-      setDraft(q)
-      return
-    }
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      if (q === '') {
-        next.delete('cardName')
+  // Called by FilterBar's Apply (Enter or the button) with the normalized
+  // six-filter object. Builds the next URL from the *current* one — set or
+  // delete only the FILTER_KEYS entries, leave sort and everything else
+  // alone — and skips the navigation entirely when nothing would actually
+  // change. This replaces Step 1's early-return inside the old
+  // handleSearchSubmit, and is what stops re-Applying an identical query
+  // from stuffing the history stack or firing a duplicate request
+  // (plans/filters.md §5 Step 2, §6 decision 2). Comparing against the
+  // outer `searchParams` (read directly, not via a functional updater) is
+  // what makes the bail-out possible: the decision to skip has to be made
+  // before `setSearchParams` is ever called.
+  function applyFilters(next) {
+    const built = new URLSearchParams(searchParams)
+    for (const key of FILTER_KEYS) {
+      if (next[key] === '') {
+        built.delete(key)
       } else {
-        next.set('cardName', q)
+        built.set(key, next[key])
       }
-      next.set('page', '0')
-      // sort is never touched by a search submit.
-      return next
-    })
+    }
+    built.set('page', '0')
+    if (built.toString() === searchParams.toString()) return
+    setSearchParams(built)
   }
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-zinc-900">Browse listings</h1>
 
-      {/* Filter bar (plan §3.2): independent control groups, each owning its
-          own commit behaviour. Search narrows the set and sits left; sort
-          orders the set and sits right — leaving the left edge free for the
-          five filters this cycle deliberately does not build (plan §3.6). */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <form role="search" onSubmit={handleSearchSubmit} className="flex flex-col gap-1">
-          <label htmlFor="cardName" className="text-sm text-zinc-700">
-            Card name
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={inputRef}
-              type="search"
-              id="cardName"
-              name="cardName"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              enterKeyHint="search"
-              spellCheck={false}
-              placeholder="Charizard"
-              className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:w-64"
-            />
-            <button
-              type="submit"
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              Search
-            </button>
-            {/* Only while a search is committed — clearing an already-empty
-                box has nothing to do (plan §5 Step 4 / §6 decision 2). */}
-            {cardName !== '' && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </form>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="sort" className="text-sm text-zinc-700">
-            Sort by
-          </label>
-          <select
-            id="sort"
-            value={sort}
-            onChange={handleSortChange}
-            className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Filter bar extracted to its own component (plans/filters.md §5 Step
+          2): it owns the draft object, the six-key sync, and Apply/Clear
+          all; this page owns everything that determines what gets fetched
+          (the clamped URL values, the request, the summary, the empty
+          state). Only cardName has a control so far — setName is deferred
+          and condition/printing/minPrice/maxPrice land in Steps 4-5 — but
+          all six are already read from the URL, sent in the request, and
+          described below, via `committed`. */}
+      <FilterBar
+        committed={committed}
+        onApply={applyFilters}
+        onClearAll={clearAllFilters}
+        sort={sort}
+        sortOptions={SORT_OPTIONS}
+        onSortChange={handleSortChange}
+        firstFieldRef={firstFieldRef}
+      />
 
       {/* Single live region for the whole page (plan §3 a11y) — loading text
           and the results summary share it so paging/refresh announces once,
@@ -298,7 +407,7 @@ function BrowsePage() {
         {loading && <p className="text-sm text-zinc-600">Loading listings…</p>}
         {loaded && (
           <p className="break-words text-sm text-zinc-600">
-            {summaryText(page, data.totalPages, data.totalElements, cardName)}
+            {summaryText(page, data.totalPages, data.totalElements, committed)}
           </p>
         )}
       </div>
@@ -319,16 +428,16 @@ function BrowsePage() {
       )}
 
       {isEmpty && (
-        // Four distinct situations (plan §3.4), not one message reused: an
-        // empty catalogue, a bookmarked page past the end, a search miss,
-        // and a search miss past the end. Telling a search miss "No
-        // listings yet" would be false — the marketplace isn't empty, the
-        // query just didn't match anything. `page > 0` takes heading
-        // precedence over an active search: "you're past the end" is the
-        // more actionable fact regardless of whether the query is fine
-        // (see `emptyStateCopy`, the single source of truth for that table).
-        // Stays outside the live region and keeps its dashed-border
-        // treatment — no `aria-live` / `role` added here.
+        // Seven distinct situations (plans/filters.md §3.7), not one
+        // message reused: a crossed price range, an empty catalogue, a
+        // bookmarked page past the end, a card-name miss, a set-name miss,
+        // a miss on any other combination of filters, and any filtered
+        // miss past the end. Telling a filtered miss "No listings yet"
+        // would be false — the marketplace isn't empty, the filters just
+        // didn't match anything. See `emptyStateCopy`, the single source of
+        // truth for that table, for the precedence order. Stays outside the
+        // live region and keeps its dashed-border treatment — no
+        // `aria-live` / `role` added here.
         <div className="space-y-3 border border-dashed border-zinc-300 p-8 text-center">
           <div className="space-y-1">
             <h2 className="break-words text-base font-medium text-zinc-900">
@@ -337,10 +446,10 @@ function BrowsePage() {
             <p className="break-words text-sm text-zinc-600">{emptyState.body}</p>
           </div>
           {/* A legitimately empty page N (e.g. the catalogue shrank after
-              this page was bookmarked, or a search only has fewer pages
-              than expected) is a different situation from an empty result
-              at page 0 — offer a way back (plan §3.4). */}
-          {(isPastEnd || hasSearch) && (
+              this page was bookmarked, or these filters only have fewer
+              pages than expected) is a different situation from an empty
+              result at page 0 — offer a way back (plans/filters.md §3.7). */}
+          {(isPastEnd || hasFilters) && (
             <div className="flex flex-wrap items-center justify-center gap-2">
               {isPastEnd && (
                 <button
@@ -351,13 +460,13 @@ function BrowsePage() {
                   Back to first page
                 </button>
               )}
-              {hasSearch && (
+              {hasFilters && (
                 <button
                   type="button"
-                  onClick={clearSearch}
+                  onClick={clearAllFilters}
                   className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 >
-                  Clear search
+                  Clear all filters
                 </button>
               )}
             </div>
