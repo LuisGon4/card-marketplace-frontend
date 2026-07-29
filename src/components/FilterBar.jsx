@@ -1,15 +1,26 @@
-import { useState } from 'react'
-import { CONDITION_OPTIONS, PRINTING_OPTIONS } from '../lib/listings'
+import { useRef, useState } from 'react'
+import { CONDITION_OPTIONS, PRINTING_OPTIONS, isPriceRangeCrossed, readPrice } from '../lib/listings'
 
-// One shape for every free-text filter control (plans/filters.md §5 Step
-// 2). cardName is the only caller today — setName's control is deferred
-// and the price fields don't land until Step 5 — but this exists so Step
-// 5's price inputs (type="text", inputMode="decimal" per §4.4, deliberately
-// not type="number") and a re-enabled setName can both use it without a
-// second implementation. `ref` is a plain prop
-// (React 19 — no forwardRef needed) forwarded straight to the <input>, so
-// a caller can call `.focus()` on the real DOM node.
-function TextFilterField({ id, name, label, placeholder, value, onChange, ref }) {
+// One shape for every free-text filter control. cardName is the only
+// search-style caller today — setName's control is deferred — and the
+// price fields also use this, passing type="text" + inputMode="decimal"
+// instead of the default `type="search"`.
+// `ref` is a plain prop (React 19 — no forwardRef needed) forwarded
+// straight to the <input>, so a caller can call `.focus()` on the real DOM
+// node. `aria-describedby` is a passthrough — undefined for callers that
+// don't need it, which renders no attribute at all.
+function TextFilterField({
+  id,
+  name,
+  label,
+  placeholder,
+  value,
+  onChange,
+  ref,
+  type = 'search',
+  inputMode,
+  'aria-describedby': ariaDescribedBy,
+}) {
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm text-zinc-700">
@@ -17,7 +28,7 @@ function TextFilterField({ id, name, label, placeholder, value, onChange, ref })
       </label>
       <input
         ref={ref}
-        type="search"
+        type={type}
         id={id}
         name={name}
         value={value}
@@ -25,6 +36,8 @@ function TextFilterField({ id, name, label, placeholder, value, onChange, ref })
         enterKeyHint="search"
         spellCheck={false}
         placeholder={placeholder}
+        inputMode={inputMode}
+        aria-describedby={ariaDescribedBy}
         className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       />
     </div>
@@ -95,6 +108,15 @@ function FilterBar({
   // because it wasn't part of the tracked shape. Do not "tidy" it out.
   const [draft, setDraft] = useState(committed)
   const [reconciledSignature, setReconciledSignature] = useState(signature)
+  // Whether the *last* submit attempt was blocked because a price box held
+  // something readPrice couldn't parse. Not derivable from the draft itself
+  // — we deliberately don't validate per keystroke — so it needs its own
+  // state, recomputed on every submit attempt and cleared the moment either
+  // price box is edited (the hint describes what's in the box right now,
+  // and would otherwise keep asserting something the user already fixed).
+  const [priceFormatBlocked, setPriceFormatBlocked] = useState(false)
+  const minPriceRef = useRef(null)
+  const maxPriceRef = useRef(null)
   // Guarded adjust-during-render sync (plans/filters.md §3.3), generalized
   // from the single-field version Step 1 shipped in BrowsePage.jsx: keeps
   // all six boxes honest against back/forward, bookmarks, and Clear all.
@@ -116,6 +138,9 @@ function FilterBar({
   if (reconciledSignature !== signature) {
     setReconciledSignature(signature)
     setDraft(committed)
+    // The flag means "the last submit was blocked," which stops being true
+    // the instant the draft it described is replaced by committed's values.
+    setPriceFormatBlocked(false)
   }
 
   function handleApply(event) {
@@ -128,10 +153,31 @@ function FilterBar({
     // special case for "the filter nothing edits," and a filter set only
     // by hand-editing the URL round-trips through an unrelated Apply
     // unchanged rather than silently vanishing.
+    const normalizedMinPrice = readPrice(draft.minPrice)
+    const normalizedMaxPrice = readPrice(draft.maxPrice)
+    // Only an unparseable price blocks Apply — a crossed range (min > max)
+    // is a legal, well-formed query with a correct 0-row answer, so it is
+    // sent verbatim rather than refused. The frontend blocks only what it
+    // cannot construct, never what it disagrees with.
+    const minPriceInvalid = draft.minPrice.trim() !== '' && normalizedMinPrice === ''
+    const maxPriceInvalid = draft.maxPrice.trim() !== '' && normalizedMaxPrice === ''
+    if (minPriceInvalid || maxPriceInvalid) {
+      setPriceFormatBlocked(true)
+      if (minPriceInvalid) {
+        minPriceRef.current?.focus()
+      } else {
+        maxPriceRef.current?.focus()
+      }
+      return
+    }
+    setPriceFormatBlocked(false)
+
     const normalized = {
       ...draft,
       cardName: draft.cardName.trim(),
       setName: draft.setName.trim(),
+      minPrice: normalizedMinPrice,
+      maxPrice: normalizedMaxPrice,
     }
     // Unconditional, not just when something changed (plans/filters.md
     // §3.3 property 5): if `committed` doesn't change, the guard above
@@ -140,6 +186,24 @@ function FilterBar({
     setDraft(normalized)
     onApply(normalized)
   }
+
+  function setPriceDraft(key, value) {
+    setDraft((prev) => ({ ...prev, [key]: value }))
+    setPriceFormatBlocked(false)
+  }
+
+  // Keyed on the draft, not committed: this hint describes what's about to
+  // be applied, while BrowsePage's empty-state row (keyed on committed)
+  // describes why the results already on screen are empty — two different
+  // questions, not an inconsistency.
+  const draftMinPrice = readPrice(draft.minPrice)
+  const draftMaxPrice = readPrice(draft.maxPrice)
+  const isDraftPriceCrossed = isPriceRangeCrossed(draftMinPrice, draftMaxPrice)
+  const priceHintMessage = priceFormatBlocked
+    ? 'Enter a plain amount, like 12.50.'
+    : isDraftPriceCrossed
+      ? 'Min price is higher than max price, so nothing will match.'
+      : null
 
   // Drives this component's own "Clear all" button. BrowsePage's
   // empty-state button of the same name computes its own equivalent from
@@ -154,9 +218,9 @@ function FilterBar({
         onSubmit={handleApply}
         className="space-y-4 rounded border border-zinc-200 p-4"
       >
-        {/* Six-filter grid (plans/filters.md §3.2). setName is deferred and
-            minPrice/maxPrice land in Step 5 — so the grid gains its
-            remaining cells later without a layout change. */}
+        {/* Six-filter grid. setName is still deferred, so the grid has five
+            live cells today and gains its sixth without a layout change
+            once that control is re-enabled. */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <TextFilterField
             id="cardName"
@@ -185,7 +249,42 @@ function FilterBar({
             value={draft.printing}
             onChange={(value) => setDraft((prev) => ({ ...prev, printing: value }))}
           />
+          {/* Plain text + inputMode="decimal", not a native numeric input:
+              a numeric input reads back '' the moment the browser can't
+              sanitize what was typed, destroying the draft — and no
+              `step` attribute, since the askingPrice column's enforced
+              scale is undocumented and a step would assert one the
+              contract explicitly leaves open. */}
+          <TextFilterField
+            id="minPrice"
+            name="minPrice"
+            label="Min price (USD)"
+            placeholder="0"
+            value={draft.minPrice}
+            onChange={(value) => setPriceDraft('minPrice', value)}
+            ref={minPriceRef}
+            type="text"
+            inputMode="decimal"
+            aria-describedby="priceHint"
+          />
+          <TextFilterField
+            id="maxPrice"
+            name="maxPrice"
+            label="Max price (USD)"
+            placeholder="100"
+            value={draft.maxPrice}
+            onChange={(value) => setPriceDraft('maxPrice', value)}
+            ref={maxPriceRef}
+            type="text"
+            inputMode="decimal"
+            aria-describedby="priceHint"
+          />
         </div>
+        {priceHintMessage !== null && (
+          <p id="priceHint" className="text-sm text-zinc-700">
+            {priceHintMessage}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="submit"

@@ -3,7 +3,14 @@ import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
-import { CONDITION_VALUES, PRINTING_VALUES, formatPrice, printingLabel } from '../lib/listings'
+import {
+  CONDITION_VALUES,
+  PRINTING_VALUES,
+  formatPrice,
+  isPriceRangeCrossed,
+  printingLabel,
+  readPrice,
+} from '../lib/listings'
 
 // Sort control (plan §5 Step 9). Fixed options, and — deliberately — each
 // value carries the Spring-style direction suffix rather than a bare field
@@ -63,21 +70,6 @@ function clampEnum(raw, validValues) {
   return validValues.has(raw) ? raw : ''
 }
 
-// Deliberately does not cap decimal places or round anything — the
-// askingPrice column's enforced scale is undocumented, so capping would
-// invent a constraint the contract doesn't state.
-function readPrice(raw) {
-  const s = (raw ?? '').trim()
-  if (s === '') return ''
-  // Plain non-negative decimal only: no sign, no exponent, no thousands
-  // separator. Rejects '-1', '1e5', '1,000', '10.', '.', 'abc', and ''.
-  if (!/^\d*(\.\d+)?$/.test(s)) return ''
-  // A very long digit string passes the regex above but parses to Infinity —
-  // the same class of guard as clampPage's Number.isSafeInteger check.
-  if (!Number.isFinite(Number(s))) return ''
-  return s
-}
-
 // Builds the "matching …" clause for the results summary, and the
 // generic-miss body ("Filters: …") in the empty state — one source of truth
 // for "what is applied", rendered in both places (plans/filters.md §3.6).
@@ -126,20 +118,16 @@ function emptyStateCopy(page, committed) {
   const hasFilters = FILTER_KEYS.some((key) => committed[key] !== '')
 
   // Keyed on the *committed* values, not a draft — this describes the
-  // result actually on screen, which was produced by what was applied. (A
-  // later step adds a filter-bar price hint keyed on the *draft* instead,
-  // because that one describes what's about to be applied. Two different
-  // sources for two different questions; it looks like an inconsistency and
-  // isn't — plans/filters.md §3.7.)
+  // result actually on screen, which was produced by what was applied.
+  // FilterBar's price hint is keyed on the *draft* instead, since it
+  // describes what's about to be applied — two different questions, not
+  // an inconsistency.
   //
   // Crossed range takes top precedence over every other row, including
   // page > 0: the backend returns 0 rows for a crossed range, not a 400,
   // so when the bounds run backwards nothing else can explain why the
   // page is empty — not the card name, not which page this is.
-  const isCrossedRange =
-    committed.minPrice !== '' &&
-    committed.maxPrice !== '' &&
-    Number(committed.minPrice) > Number(committed.maxPrice)
+  const isCrossedRange = isPriceRangeCrossed(committed.minPrice, committed.maxPrice)
   if (isCrossedRange) {
     return {
       heading: 'Min price is higher than max price',

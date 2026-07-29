@@ -45,3 +45,25 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 export function formatPrice(value) {
   return currencyFormatter.format(value)
 }
+
+// Deliberately does not cap decimal places or round anything — the
+// askingPrice column's enforced scale is undocumented, so capping would
+// invent a constraint the contract doesn't state.
+export function readPrice(raw) {
+  const s = (raw ?? '').trim()
+  if (s === '') return ''
+  // Plain non-negative decimal only: no sign, no exponent, no thousands
+  // separator. Rejects '-1', '1e5', '1,000', '10.', '.', 'abc', and ''.
+  if (!/^\d*(\.\d+)?$/.test(s)) return ''
+  // A very long digit string passes the regex above but parses to Infinity —
+  // the same class of guard as clampPage's Number.isSafeInteger check.
+  if (!Number.isFinite(Number(s))) return ''
+  return s
+}
+
+// Takes already-clamped values (never calls readPrice itself), so the same
+// comparison works whether the caller is keyed on a draft or on committed
+// URL state.
+export function isPriceRangeCrossed(minPrice, maxPrice) {
+  return minPrice !== '' && maxPrice !== '' && Number(minPrice) > Number(maxPrice)
+}
