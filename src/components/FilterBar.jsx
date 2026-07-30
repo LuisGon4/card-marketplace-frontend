@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { CONDITION_OPTIONS, PRINTING_OPTIONS, isPriceRangeCrossed, readPrice } from '../lib/listings'
 import { hasAnyFilter } from '../helpers/browse/searchParams'
+import SecondaryButton from './SecondaryButton'
 
 // One shape for every free-text filter control. cardName is the only
 // search-style caller, and the price fields also use this, passing
@@ -278,15 +279,7 @@ function FilterBar({
           </button>
           {/* Only while a filter is committed — clearing an already-empty
               bar has nothing to do, generalized to all five filters. */}
-          {hasFilters && (
-            <button
-              type="button"
-              onClick={onClearAll}
-              className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              Clear all
-            </button>
-          )}
+          {hasFilters && <SecondaryButton onClick={onClearAll}>Clear all</SecondaryButton>}
         </div>
       </form>
 

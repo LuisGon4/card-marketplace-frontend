@@ -3,6 +3,9 @@ import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
+import SecondaryButton from '../components/SecondaryButton'
+import EmptyState from '../components/EmptyState'
+import Pager from '../components/Pager'
 import {
   FILTER_KEYS,
   SORT_OPTIONS,
@@ -63,9 +66,8 @@ function BrowsePage() {
   // Forward availability comes from the response's own `hasNext` only — never
   // derived from `totalPages` (BACKEND.md's `PageResponse` shape).
   const hasNext = data?.hasNext ?? false
-  // Drive the action buttons below only — `emptyStateCopy` derives its own
-  // `hasFilters` from `committed` and open-codes `page > 0` itself, sharing
-  // the rule via `hasAnyFilter` rather than by receiving these values.
+  // Same expression as copy.js's `page > 0` branch, but a different
+  // question — gates these buttons vs. picks the empty-state message.
   const isPastEnd = page > 0
   const hasFilters = hasAnyFilter(committed)
   const emptyState = isEmpty ? emptyStateCopy(page, committed) : null
@@ -158,67 +160,48 @@ function BrowsePage() {
           {/* Server's plain-text message, rendered verbatim — never rewritten
               or paraphrased (CLAUDE.md "API access"). */}
           <p className="text-sm text-zinc-900">{error.message}</p>
-          <button
-            type="button"
+          <SecondaryButton
             onClick={() => {
               refetch()
               focusPageHeading()
             }}
-            className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             Try again
-          </button>
+          </SecondaryButton>
         </div>
       )}
 
       {isEmpty && (
-        // Six distinct situations (plans/filters.md §3.7), not one message
-        // reused: a crossed price range, an empty catalogue, a bookmarked
-        // page past the end, a card-name miss, a miss on any other
-        // combination of filters, and any filtered miss past the end.
-        // Telling a filtered miss "No listings yet" would be false — the
-        // marketplace isn't empty, the filters just didn't match anything.
-        // See `emptyStateCopy`, the single source of truth for that table,
-        // for the precedence order. Stays outside the live region and
-        // keeps its dashed-border treatment — no `aria-live` / `role`
-        // added here.
-        <div className="space-y-3 border border-dashed border-zinc-300 p-8 text-center">
-          <div className="space-y-1">
-            <h2 className="break-words text-base font-medium text-zinc-900">
-              {emptyState.heading}
-            </h2>
-            <p className="break-words text-sm text-zinc-600">{emptyState.body}</p>
-          </div>
-          {/* A legitimately empty page N (e.g. the catalogue shrank after
-              this page was bookmarked, or these filters only have fewer
-              pages than expected) is a different situation from an empty
-              result at page 0 — offer a way back (plans/filters.md §3.7). */}
+        // The empty-state cases and their precedence are documented once,
+        // at emptyStateCopy — this is just the call site. EmptyState stays
+        // outside the live region above; do not move this inside it.
+        <EmptyState heading={emptyState.heading} body={emptyState.body}>
+          {/* This outer guard isn't redundant with the two conditionals
+              below: without it, two sibling expressions (one of which can
+              be false) become the array `[false, false]`, which is truthy
+              — EmptyState would render an empty, visible action row. */}
           {(isPastEnd || hasFilters) && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <>
+              {/* A legitimately empty page N (e.g. the catalogue shrank
+                  after this page was bookmarked, or these filters only
+                  have fewer pages than expected) is a different situation
+                  from an empty result at page 0 — offer a way back. */}
               {isPastEnd && (
-                <button
-                  type="button"
+                <SecondaryButton
                   onClick={() => {
                     goToPage(0)
                     focusPageHeading()
                   }}
-                  className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 >
                   Back to first page
-                </button>
+                </SecondaryButton>
               )}
               {hasFilters && (
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                >
-                  Clear all filters
-                </button>
+                <SecondaryButton onClick={clearAllFilters}>Clear all filters</SecondaryButton>
               )}
-            </div>
+            </>
           )}
-        </div>
+        </EmptyState>
       )}
 
       {loaded && listings.length > 0 && (
@@ -233,37 +216,8 @@ function BrowsePage() {
         </ul>
       )}
 
-      {/* Chrome, not a fifth state: rendered unconditionally alongside the
-          four blocks above so the control row never appears/disappears or
-          jumps as loading/error/empty/populated toggle. `page` is always
-          known from the URL; `totalPages` is only known once a response has
-          landed, so it falls back to an em dash rather than changing the
-          template's shape. */}
-      <div className="flex items-center justify-center gap-3">
-        <button
-          type="button"
-          disabled={page === 0}
-          onClick={() => goToPage(page - 1)}
-          className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span className="text-sm text-zinc-700">
-          {/* Same guard as summaryText's: totalPages === 0 (empty catalogue)
-              is a real number, not a missing one, and "Page 1 of 0" is just
-              as nonsensical here as it is there — fall back to the em dash
-              for "unknown" and "zero" alike. */}
-          Page {page + 1} of {data?.totalPages ? data.totalPages : '—'}
-        </span>
-        <button
-          type="button"
-          disabled={!hasNext}
-          onClick={() => goToPage(page + 1)}
-          className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
+      {/* Unconditional on purpose — see Pager. */}
+      <Pager page={page} totalPages={data?.totalPages} hasNext={hasNext} onGoToPage={goToPage} />
     </div>
   )
 }
