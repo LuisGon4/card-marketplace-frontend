@@ -243,7 +243,7 @@ function FilterBar({
             id="minPrice"
             name="minPrice"
             label="Min price (USD)"
-            placeholder="0"
+            placeholder="ex: 0"
             value={draft.minPrice}
             onChange={(value) => setPriceDraft('minPrice', value)}
             ref={minPriceRef}
@@ -255,7 +255,7 @@ function FilterBar({
             id="maxPrice"
             name="maxPrice"
             label="Max price (USD)"
-            placeholder="100"
+            placeholder="ex: 100"
             value={draft.maxPrice}
             onChange={(value) => setPriceDraft('maxPrice', value)}
             ref={maxPriceRef}

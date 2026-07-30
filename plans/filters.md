@@ -310,8 +310,8 @@ JSON signature rather than object identity.
 | `setName` | `type="search"` input — **LOCKED by Luis; same code path as `cardName` (§4.2)** | verbatim, edge-trimmed | label "Set name", placeholder `Base Set` |
 | `condition` | single `<select>`, 6 options | `''` \| `NM` \| `LP` \| `MP` \| `HP` \| `DMG` | "Any condition", then `NM — Near Mint`, `LP — Lightly Played`, `MP — Moderately Played`, `HP — Heavily Played`, `DMG — Damaged` |
 | `printing` | single `<select>`, 4 options | `''` \| `NORMAL` \| `HOLOFOIL` \| `REVERSE_HOLOFOIL` | "Any printing", then `Normal`, `Holofoil`, `Reverse holofoil` |
-| `minPrice` | `type="text" inputMode="decimal"` — **§4.4** | plain decimal string, verbatim | label "Min price (USD)", placeholder `0` |
-| `maxPrice` | `type="text" inputMode="decimal"` — **§4.4** | plain decimal string, verbatim | label "Max price (USD)", placeholder `100` |
+| `minPrice` | `type="text" inputMode="decimal"` — **§4.4** | plain decimal string, verbatim | label "Min price (USD)", placeholder `ex: 0` |
+| `maxPrice` | `type="text" inputMode="decimal"` — **§4.4** | plain decimal string, verbatim | label "Max price (USD)", placeholder `ex: 100` |
 
 **`cardName` and `setName` are visually and behaviourally identical.** Same element, same
 attributes, same styling, same handlers, same normalization. The only differences are `id`,
