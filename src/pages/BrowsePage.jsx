@@ -3,75 +3,16 @@ import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
+import { formatPrice, isPriceRangeCrossed, printingLabel } from '../lib/listings'
 import {
-  CONDITION_VALUES,
-  PRINTING_VALUES,
-  formatPrice,
-  isPriceRangeCrossed,
-  printingLabel,
-  readPrice,
-} from '../lib/listings'
-
-// Sort control (plan §5 Step 9). Fixed options, and — deliberately — each
-// value carries the Spring-style direction suffix rather than a bare field
-// name. BACKEND.md §1 ("sort" row): "Optional direction suffix ,asc/,desc
-// ... only the field is validated" — so `createdAt,desc` and `askingPrice,desc`
-// are both legal requests, and Step 8 already shipped `createdAt,desc` as the
-// fixed default. Keeping the suffix here keeps the "Newest first" default
-// consistent with Step 8, and lets the two `askingPrice` options share a field
-// while differing only in direction. Do not "simplify" this back to a bare
-// field name. Passed to FilterBar as a prop rather than duplicated there —
-// don't add a second copy.
-const SORT_OPTIONS = [
-  { value: 'createdAt,desc', label: 'Newest first' },
-  { value: 'askingPrice,asc', label: 'Price: low to high' },
-  { value: 'askingPrice,desc', label: 'Price: high to low' },
-]
-const DEFAULT_SORT = SORT_OPTIONS[0].value
-const VALID_SORT_VALUES = new Set(SORT_OPTIONS.map((option) => option.value))
-
-// Read + clamp the URL's `page` param. The URL is untrusted input (a human
-// can hand-edit it), so an invalid value is treated as page 0 rather than
-// sent to the API — clamping happens here, on read, and the address bar is
-// never rewritten to "correct" it.
-function clampPage(rawPage) {
-  const parsed = Number.parseInt(rawPage, 10)
-  // Number.isSafeInteger, not Number.isFinite: a huge digit string parses to
-  // a finite-but-non-integral float (Number.parseInt('999...999', 10) is
-  // 1e+30, and Number.isFinite(1e30) is true), and String(1e30) stringifies
-  // as "1e+30" — an invalid, non-integer `page` value that would still reach
-  // the API. isSafeInteger rejects that the same way it rejects everything
-  // else out of range, falling back to 0.
-  if (!Number.isSafeInteger(parsed) || parsed < 0) return 0
-  return parsed
-}
-
-// Same untrusted-input treatment for `sort`: anything outside the two fixed
-// options falls back to the default rather than reaching the API, where an
-// unrecognized field would 400 (BACKEND.md §1).
-function clampSort(rawSort) {
-  return VALID_SORT_VALUES.has(rawSort) ? rawSort : DEFAULT_SORT
-}
-
-// The request builder below loops over this so no filter can be
-// special-cased, and describeFilters / emptyStateCopy reuse it as the
-// single definition of "which five params count as a filter."
-const FILTER_KEYS = ['cardName', 'condition', 'printing', 'minPrice', 'maxPrice']
-
-// Same clamp-on-read treatment as clampPage / clampSort. Kept as a named
-// helper even with one call site: it names the trim-on-read rule that
-// FilterBar's trim-on-write mirrors, and keeps cardName from becoming the
-// one URL param read by inline code in an otherwise uniform table of
-// readers.
-function readTrimmed(searchParams, key) {
-  return (searchParams.get(key) ?? '').trim()
-}
-
-// Clamped case-sensitively on purpose: `?condition=nm` clamps to '', not
-// 'NM' — do not add a `.toUpperCase()` to "help" it match.
-function clampEnum(raw, validValues) {
-  return validValues.has(raw) ? raw : ''
-}
+  FILTER_KEYS,
+  SORT_OPTIONS,
+  readBrowseParams,
+  withFilters,
+  withoutFilters,
+  withPage,
+  withSort,
+} from '../helpers/browse/searchParams'
 
 // Builds the "matching …" clause for the results summary, and the
 // generic-miss body ("Filters: …") in the empty state — one source of truth
@@ -190,20 +131,10 @@ function summaryText(page, totalPages, totalElements, committed) {
 function BrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Untrusted URL input, clamped on every read. Never rewritten back into
-  // the address bar — `?page=-3&sort=bogus` must render page 0, newest-first,
-  // without ever touching history.
-  const page = clampPage(searchParams.get('page'))
-  const sort = clampSort(searchParams.get('sort'))
-  const cardName = readTrimmed(searchParams, 'cardName')
-  const condition = clampEnum(searchParams.get('condition'), CONDITION_VALUES)
-  const printing = clampEnum(searchParams.get('printing'), PRINTING_VALUES)
-  const minPrice = readPrice(searchParams.get('minPrice'))
-  const maxPrice = readPrice(searchParams.get('maxPrice'))
-  // All five filters, collapsed to one object — the request loop, the
-  // summary, and the empty-state table all key off this rather than five
-  // separate parameters.
-  const committed = { cardName, condition, printing, minPrice, maxPrice }
+  // Untrusted URL input, clamped on every read inside readBrowseParams —
+  // never rewritten back into the address bar. `?page=-3&sort=bogus` must
+  // render page 0, newest-first, without ever touching history.
+  const { page, sort, committed } = readBrowseParams(searchParams)
 
   // The card-name field's DOM node, so a Clear-all triggered from either
   // entry point (FilterBar's own button, or the empty state's) can move
@@ -263,24 +194,13 @@ function BrowsePage() {
 
   function goToPage(nextPage) {
     // Push a history entry per change (Luis's decision — no `{ replace: true }`)
-    // so the back button steps back through pages. Preserve any other params
-    // (e.g. future filters) via the functional updater.
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.set('page', String(nextPage))
-      return next
-    })
+    // so the back button steps back through pages. `withPage` copies the
+    // current params and touches only `page`.
+    setSearchParams((prev) => withPage(prev, nextPage))
   }
 
   function handleSortChange(event) {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.set('sort', event.target.value)
-      // Changing sort resets to page 0 — a stale page number from the old
-      // sort order would otherwise point at unrelated results.
-      next.set('page', '0')
-      return next
-    })
+    setSearchParams((prev) => withSort(prev, event.target.value))
   }
 
   // Shared by both Clear entry points: beside the field (relabeled "Clear
@@ -288,44 +208,24 @@ function BrowsePage() {
   // "Clear" while silently deleting four other filters would lie about what
   // it does, and gating it on cardName alone would leave a URL like
   // `?condition=NM` with no visible way to clear it) and the empty-state
-  // button (relabeled "Clear all filters" below). Deletes every filter key,
-  // not just cardName, and never touches sort (plans/filters.md §5 Step 1).
+  // button (relabeled "Clear all filters" below).
   function clearAllFilters() {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      for (const key of FILTER_KEYS) {
-        next.delete(key)
-      }
-      next.set('page', '0')
-      return next
-    })
+    setSearchParams((prev) => withoutFilters(prev))
     // The button beside the field unmounts itself the moment this runs (it
     // only renders while hasFilters is true), so send focus to the input
-    // rather than letting it fall to <body> (plan §3.5).
+    // rather than letting it fall to <body>.
     firstFieldRef.current?.focus()
   }
 
   // Called by FilterBar's Apply (Enter or the button) with the normalized
-  // five-filter object. Builds the next URL from the *current* one — set or
-  // delete only the FILTER_KEYS entries, leave sort and everything else
-  // alone — and skips the navigation entirely when nothing would actually
-  // change. This replaces Step 1's early-return inside the old
-  // handleSearchSubmit, and is what stops re-Applying an identical query
-  // from stuffing the history stack or firing a duplicate request
-  // (plans/filters.md §5 Step 2, §6 decision 2). Comparing against the
-  // outer `searchParams` (read directly, not via a functional updater) is
-  // what makes the bail-out possible: the decision to skip has to be made
-  // before `setSearchParams` is ever called.
+  // five-filter object, and skips the navigation entirely when nothing would
+  // actually change — this is what stops re-Applying an identical query from
+  // stuffing the history stack or firing a duplicate request. Comparing
+  // against the outer `searchParams` (read directly, not via a functional
+  // updater) is what makes the bail-out possible: the decision to skip has
+  // to be made before `setSearchParams` is ever called.
   function applyFilters(next) {
-    const built = new URLSearchParams(searchParams)
-    for (const key of FILTER_KEYS) {
-      if (next[key] === '') {
-        built.delete(key)
-      } else {
-        built.set(key, next[key])
-      }
-    }
-    built.set('page', '0')
+    const built = withFilters(searchParams, next)
     if (built.toString() === searchParams.toString()) return
     setSearchParams(built)
   }
