@@ -202,7 +202,7 @@ function FilterBar({
   const priceHintMessage = priceFormatBlocked
     ? 'Enter a plain amount, like 12.50.'
     : isDraftPriceCrossed
-      ? 'Min price is higher than max price, so nothing will match.'
+      ? 'Min price cannot be higher than max price'
       : null
 
   // Drives this component's own "Clear all" button. BrowsePage's
@@ -220,7 +220,10 @@ function FilterBar({
       >
         {/* Six-filter grid. setName is still deferred, so the grid has five
             live cells today and gains its sixth without a layout change
-            once that control is re-enabled. */}
+            once that control is re-enabled. At the five-cell count, min/max
+            price (indices 4-5) aren't adjacent at sm:grid-cols-2 — they
+            straddle a row boundary. Temporary, and resolves itself once
+            setName's cell returns; not a reason to reorder or wrap the pair. */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <TextFilterField
             id="cardName"

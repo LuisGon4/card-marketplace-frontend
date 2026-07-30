@@ -229,6 +229,11 @@ function BrowsePage() {
   // (plans/filters.md §5 Step 2). Read only inside a handler, never during
   // render (plan §3.5, react-hooks/refs).
   const firstFieldRef = useRef(null)
+  // The <h1>'s DOM node, so Try again and Back to first page can move focus
+  // there once the button the user just clicked unmounts itself. Unlike
+  // Clear all, neither of these is a filter action, so the heading of the
+  // region that changed — not the card-name input — is the target.
+  const headingRef = useRef(null)
 
   const path = (() => {
     const params = new URLSearchParams()
@@ -263,6 +268,14 @@ function BrowsePage() {
   const isPastEnd = page > 0
   const hasFilters = FILTER_KEYS.some((key) => committed[key] !== '')
   const emptyState = isEmpty ? emptyStateCopy(page, committed) : null
+
+  // Shared by Try again and Back to first page: both unmount the button
+  // that was just clicked, which would otherwise drop focus to <body>. Not
+  // used by Clear all — that has its own, deliberately different target
+  // (see clearAllFilters).
+  function focusPageHeading() {
+    headingRef.current?.focus()
+  }
 
   function goToPage(nextPage) {
     // Push a history entry per change (Luis's decision — no `{ replace: true }`)
@@ -335,7 +348,12 @@ function BrowsePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-zinc-900">Browse listings</h1>
+      {/* tabIndex={-1} is not a tab stop; it exists so focusPageHeading can
+          land here. Removing it silently reintroduces the focus-to-<body>
+          bug. */}
+      <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold text-zinc-900">
+        Browse listings
+      </h1>
 
       {/* Filter bar extracted to its own component (plans/filters.md §5 Step
           2): it owns the draft object, the six-key sync, and Apply/Clear
@@ -373,7 +391,10 @@ function BrowsePage() {
           <p className="text-sm text-zinc-900">{error.message}</p>
           <button
             type="button"
-            onClick={refetch}
+            onClick={() => {
+              refetch()
+              focusPageHeading()
+            }}
             className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           >
             Try again
@@ -408,7 +429,10 @@ function BrowsePage() {
               {isPastEnd && (
                 <button
                   type="button"
-                  onClick={() => goToPage(0)}
+                  onClick={() => {
+                    goToPage(0)
+                    focusPageHeading()
+                  }}
                   className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 >
                   Back to first page
