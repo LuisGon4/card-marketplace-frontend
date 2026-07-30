@@ -55,11 +55,14 @@ function clampSort(rawSort) {
 
 // The request builder below loops over this so no filter can be
 // special-cased, and describeFilters / emptyStateCopy reuse it as the
-// single definition of "which six params count as a filter."
-const FILTER_KEYS = ['cardName', 'setName', 'condition', 'printing', 'minPrice', 'maxPrice']
+// single definition of "which five params count as a filter."
+const FILTER_KEYS = ['cardName', 'condition', 'printing', 'minPrice', 'maxPrice']
 
-// Same clamp-on-read treatment as clampPage / clampSort, generalized to
-// take a key so cardName and setName share one function.
+// Same clamp-on-read treatment as clampPage / clampSort. Kept as a named
+// helper even with one call site: it names the trim-on-read rule that
+// FilterBar's trim-on-write mirrors, and keeps cardName from becoming the
+// one URL param read by inline code in an otherwise uniform table of
+// readers.
 function readTrimmed(searchParams, key) {
   return (searchParams.get(key) ?? '').trim()
 }
@@ -72,17 +75,13 @@ function clampEnum(raw, validValues) {
 
 // Builds the "matching …" clause for the results summary, and the
 // generic-miss body ("Filters: …") in the empty state — one source of truth
-// for "what is applied", rendered in both places (plans/filters.md §3.6).
-// FILTER_KEYS order throughout. The two price bounds collapse into a single
-// descriptor rather than two: "price from $10.00 to $50.00" reads as one
-// filter, not a pair.
+// for "what is applied", rendered in both places. FILTER_KEYS order
+// throughout. The two price bounds collapse into a single descriptor rather
+// than two: "price from $10.00 to $50.00" reads as one filter, not a pair.
 function describeFilters(committed) {
   const parts = []
   if (committed.cardName !== '') {
     parts.push(`card name “${committed.cardName}”`)
-  }
-  if (committed.setName !== '') {
-    parts.push(`set name “${committed.setName}”`)
   }
   if (committed.condition !== '') {
     // Raw code, not the expanded label — matches how ListingCard renders it
@@ -108,7 +107,7 @@ function describeFilters(committed) {
   return parts
 }
 
-// The single source of truth for the §3.7 empty-state table (seven rows:
+// The single source of truth for the §3.7 empty-state table (six rows:
 // crossed range × page > 0/0 × how many filters are active) — stated once
 // here rather than re-derived separately by the heading, body, and action
 // buttons, which is what let "No listings yet" slip through on a search
@@ -155,9 +154,9 @@ function emptyStateCopy(page, committed) {
     }
   }
 
-  // "Only X" means X is the single active filter among all six, checked
-  // against FILTER_KEYS so a future seventh filter can't silently break
-  // this test.
+  // "Only X" means X is the single active filter among all five, checked
+  // against FILTER_KEYS so a future sixth filter can't silently break this
+  // test.
   const isOnly = (key) =>
     committed[key] !== '' && FILTER_KEYS.every((k) => k === key || committed[k] === '')
 
@@ -165,20 +164,6 @@ function emptyStateCopy(page, committed) {
     return {
       heading: `No listings match “${committed.cardName}”`,
       body: 'Check the spelling, or search a shorter part of the name.',
-    }
-  }
-
-  // setName's matching semantics are unverified (TODO(Luis) A). This row
-  // deliberately gives the *opposite* advice from cardName's row above:
-  // cardName is a confirmed partial match, so "search a shorter part" is
-  // correct there; setName might be an exact match, so "try the full set
-  // name" is the only advice that's right under either answer. Relax to
-  // match cardName's wording once TODO(Luis) A closes as partial
-  // (plans/filters.md §3.7).
-  if (isOnly('setName')) {
-    return {
-      heading: `No listings match set “${committed.setName}”`,
-      body: 'Check the spelling, and try the full set name — “Base Set” rather than “Base”.',
     }
   }
 
@@ -211,15 +196,14 @@ function BrowsePage() {
   const page = clampPage(searchParams.get('page'))
   const sort = clampSort(searchParams.get('sort'))
   const cardName = readTrimmed(searchParams, 'cardName')
-  const setName = readTrimmed(searchParams, 'setName')
   const condition = clampEnum(searchParams.get('condition'), CONDITION_VALUES)
   const printing = clampEnum(searchParams.get('printing'), PRINTING_VALUES)
   const minPrice = readPrice(searchParams.get('minPrice'))
   const maxPrice = readPrice(searchParams.get('maxPrice'))
-  // All six filters, collapsed to one object — the request loop, the
-  // summary, and the empty-state table all key off this rather than six
-  // separate parameters (plans/filters.md §5 Step 1).
-  const committed = { cardName, setName, condition, printing, minPrice, maxPrice }
+  // All five filters, collapsed to one object — the request loop, the
+  // summary, and the empty-state table all key off this rather than five
+  // separate parameters.
+  const committed = { cardName, condition, printing, minPrice, maxPrice }
 
   // The card-name field's DOM node, so a Clear-all triggered from either
   // entry point (FilterBar's own button, or the empty state's) can move
@@ -301,7 +285,7 @@ function BrowsePage() {
 
   // Shared by both Clear entry points: beside the field (relabeled "Clear
   // all" and gated on `hasFilters`, not just cardName — a button that reads
-  // "Clear" while silently deleting five other filters would lie about what
+  // "Clear" while silently deleting four other filters would lie about what
   // it does, and gating it on cardName alone would leave a URL like
   // `?condition=NM` with no visible way to clear it) and the empty-state
   // button (relabeled "Clear all filters" below). Deletes every filter key,
@@ -322,7 +306,7 @@ function BrowsePage() {
   }
 
   // Called by FilterBar's Apply (Enter or the button) with the normalized
-  // six-filter object. Builds the next URL from the *current* one — set or
+  // five-filter object. Builds the next URL from the *current* one — set or
   // delete only the FILTER_KEYS entries, leave sort and everything else
   // alone — and skips the navigation entirely when nothing would actually
   // change. This replaces Step 1's early-return inside the old
@@ -355,13 +339,12 @@ function BrowsePage() {
         Browse listings
       </h1>
 
-      {/* Filter bar extracted to its own component (plans/filters.md §5 Step
-          2): it owns the draft object, the six-key sync, and Apply/Clear
-          all; this page owns everything that determines what gets fetched
-          (the clamped URL values, the request, the summary, the empty
-          state). setName is deferred and minPrice/maxPrice land in Step 5 —
-          but all six are already read from the URL, sent in the request,
-          and described below, via `committed`. */}
+      {/* Filter bar extracted to its own component: it owns the draft
+          object, the five-key sync, and Apply/Clear all; this page owns
+          everything that determines what gets fetched (the clamped URL
+          values, the request, the summary, the empty state). All five
+          filters are read from the URL, sent in the request, and described
+          below, via `committed`. */}
       <FilterBar
         committed={committed}
         onApply={applyFilters}
@@ -403,16 +386,16 @@ function BrowsePage() {
       )}
 
       {isEmpty && (
-        // Seven distinct situations (plans/filters.md §3.7), not one
-        // message reused: a crossed price range, an empty catalogue, a
-        // bookmarked page past the end, a card-name miss, a set-name miss,
-        // a miss on any other combination of filters, and any filtered
-        // miss past the end. Telling a filtered miss "No listings yet"
-        // would be false — the marketplace isn't empty, the filters just
-        // didn't match anything. See `emptyStateCopy`, the single source of
-        // truth for that table, for the precedence order. Stays outside the
-        // live region and keeps its dashed-border treatment — no
-        // `aria-live` / `role` added here.
+        // Six distinct situations (plans/filters.md §3.7), not one message
+        // reused: a crossed price range, an empty catalogue, a bookmarked
+        // page past the end, a card-name miss, a miss on any other
+        // combination of filters, and any filtered miss past the end.
+        // Telling a filtered miss "No listings yet" would be false — the
+        // marketplace isn't empty, the filters just didn't match anything.
+        // See `emptyStateCopy`, the single source of truth for that table,
+        // for the precedence order. Stays outside the live region and
+        // keeps its dashed-border treatment — no `aria-live` / `role`
+        // added here.
         <div className="space-y-3 border border-dashed border-zinc-300 p-8 text-center">
           <div className="space-y-1">
             <h2 className="break-words text-base font-medium text-zinc-900">

@@ -2,9 +2,8 @@ import { useRef, useState } from 'react'
 import { CONDITION_OPTIONS, PRINTING_OPTIONS, isPriceRangeCrossed, readPrice } from '../lib/listings'
 
 // One shape for every free-text filter control. cardName is the only
-// search-style caller today — setName's control is deferred — and the
-// price fields also use this, passing type="text" + inputMode="decimal"
-// instead of the default `type="search"`.
+// search-style caller, and the price fields also use this, passing
+// type="text" + inputMode="decimal" instead of the default `type="search"`.
 // `ref` is a plain prop (React 19 — no forwardRef needed) forwarded
 // straight to the <input>, so a caller can call `.focus()` on the real DOM
 // node. `aria-describedby` is a passthrough — undefined for callers that
@@ -71,7 +70,7 @@ function SelectFilterField({ id, name, label, anyLabel, options, value, onChange
   )
 }
 
-// `committed` is BrowsePage's six clamped filter values, straight off the
+// `committed` is BrowsePage's five clamped filter values, straight off the
 // URL. `onApply(normalized)` and `onClearAll()` are BrowsePage's
 // `applyFilters` and `clearAllFilters`. `sort` / `onSortChange` are the
 // existing sort control, unchanged in behaviour, just relocated here.
@@ -95,17 +94,10 @@ function FilterBar({
   // fixed order, so this can't drift out of sync the way a duplicated key
   // list could. JSON.stringify over Object.values is injective — two
   // different filter sets can never produce the same signature. A naive
-  // join('|') can collide: setName 'a|b' with no condition and setName 'a'
-  // with condition 'b' both join to 'a|b' (plans/filters.md §3.3).
+  // join('|') can collide: cardName 'a|b' with condition 'c', and cardName
+  // 'a' with condition 'b|c', both join to 'a|b|c|||'.
   const signature = JSON.stringify(Object.values(committed))
 
-  // All six filter keys, including `setName`, even though no control below
-  // edits it — the setName control is deferred, not removed (setName came
-  // back exact and case-sensitive, unlike cardName's partial match, so no
-  // control ships yet). `setName` stays in the draft/signature/normalized
-  // shapes anyway so a value set by hand-editing the URL survives an
-  // unrelated Apply untouched, rather than getting silently dropped
-  // because it wasn't part of the tracked shape. Do not "tidy" it out.
   const [draft, setDraft] = useState(committed)
   const [reconciledSignature, setReconciledSignature] = useState(signature)
   // Whether the *last* submit attempt was blocked because a price box held
@@ -119,7 +111,7 @@ function FilterBar({
   const maxPriceRef = useRef(null)
   // Guarded adjust-during-render sync (plans/filters.md §3.3), generalized
   // from the single-field version Step 1 shipped in BrowsePage.jsx: keeps
-  // all six boxes honest against back/forward, bookmarks, and Clear all.
+  // all five boxes honest against back/forward, bookmarks, and Clear all.
   // `committed` is a fresh object every render — BrowsePage rebuilds it
   // from searchParams each time — so comparing it by `!==` directly would
   // always be true and this would loop forever. Collapsing it to a JSON
@@ -127,8 +119,8 @@ function FilterBar({
   // structurally identical to the shipped single-field guard.
   //
   // Do NOT convert this to a useEffect: an effect would paint the stale
-  // draft first and correct it a tick later — the documented anti-pattern
-  // plans/search.md §3.3 rejected, which still applies at six fields.
+  // draft first and correct it a tick later — the documented anti-pattern,
+  // which still applies at five fields.
   // Do NOT key any field on a changing value either: the key would also
   // change on Apply, which would unmount the focused input and drop focus
   // to <body> — the same failure that option was rejected for.
@@ -145,14 +137,7 @@ function FilterBar({
 
   function handleApply(event) {
     event.preventDefault()
-    // Edge-trim on write, the same rule readTrimmed applies on read
-    // (plans/filters.md §4.2) — applied uniformly to both text filters.
-    // setName has no control yet (deferred), so its draft value never
-    // diverges from committed.setName and this trim is a no-op for it —
-    // but trimming it unconditionally here means Apply never needs a
-    // special case for "the filter nothing edits," and a filter set only
-    // by hand-editing the URL round-trips through an unrelated Apply
-    // unchanged rather than silently vanishing.
+    // Edge-trim on write, the same rule readTrimmed applies on read.
     const normalizedMinPrice = readPrice(draft.minPrice)
     const normalizedMaxPrice = readPrice(draft.maxPrice)
     // Only an unparseable price blocks Apply — a crossed range (min > max)
@@ -175,7 +160,6 @@ function FilterBar({
     const normalized = {
       ...draft,
       cardName: draft.cardName.trim(),
-      setName: draft.setName.trim(),
       minPrice: normalizedMinPrice,
       maxPrice: normalizedMaxPrice,
     }
@@ -218,12 +202,12 @@ function FilterBar({
         onSubmit={handleApply}
         className="space-y-4 rounded border border-zinc-200 p-4"
       >
-        {/* Six-filter grid. setName is still deferred, so the grid has five
-            live cells today and gains its sixth without a layout change
-            once that control is re-enabled. At the five-cell count, min/max
-            price (indices 4-5) aren't adjacent at sm:grid-cols-2 — they
-            straddle a row boundary. Temporary, and resolves itself once
-            setName's cell returns; not a reason to reorder or wrap the pair. */}
+        {/* Five-cell grid — the indefinite state, not a step toward six. At
+            sm:grid-cols-2, the price pair straddles a row boundary rather
+            than landing side by side. The pair is deliberately not nested
+            and not given a span: the flat layout is what encodes that min
+            price and max price are two independent filters, not one
+            compound control. */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <TextFilterField
             id="cardName"
@@ -296,9 +280,7 @@ function FilterBar({
             Apply filters
           </button>
           {/* Only while a filter is committed — clearing an already-empty
-              bar has nothing to do (plans/search.md §5 Step 4 / §6 decision
-              2, generalized to all six filters in plans/filters.md §5 Step
-              1). */}
+              bar has nothing to do, generalized to all five filters. */}
           {hasFilters && (
             <button
               type="button"
