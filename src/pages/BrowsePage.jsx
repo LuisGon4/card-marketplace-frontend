@@ -30,9 +30,8 @@ function BrowsePage() {
   // entry point (FilterBar's own button, or the empty state's) can move
   // focus there after the button that was clicked unmounts itself. Created
   // here rather than inside FilterBar because both entry points that need
-  // it live in this file; FilterBar just attaches it to the input
-  // (plans/filters.md §5 Step 2). Read only inside a handler, never during
-  // render (plan §3.5, react-hooks/refs).
+  // it live in this file; FilterBar just attaches it to the input. Read
+  // only inside a handler, never during render.
   const firstFieldRef = useRef(null)
   // The <h1>'s DOM node, so Try again and Back to first page can move focus
   // there once the button the user just clicked unmounts itself. Unlike
@@ -143,9 +142,9 @@ function BrowsePage() {
         firstFieldRef={firstFieldRef}
       />
 
-      {/* Single live region for the whole page (plan §3 a11y) — loading text
-          and the results summary share it so paging/refresh announces once,
-          not twice. */}
+      {/* Single live region for the whole page — loading text and the
+          results summary share it so paging/refresh announces once, not
+          twice. */}
       <div role="status" aria-live="polite">
         {loading && <p className="text-sm text-zinc-600">Loading listings…</p>}
         {loaded && (

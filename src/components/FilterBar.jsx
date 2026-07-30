@@ -81,7 +81,7 @@ function SelectFilterField({ id, name, label, anyLabel, options, value, onChange
 // `firstFieldRef` is created in BrowsePage (not here), so `clearAllFilters`
 // can call `.focus()` on it after either Clear-all entry point — this
 // component's own button, or the empty state's — has already unmounted
-// itself (plans/filters.md §5 Step 2).
+// itself.
 function FilterBar({
   committed,
   onApply,
@@ -111,14 +111,12 @@ function FilterBar({
   const [priceFormatBlocked, setPriceFormatBlocked] = useState(false)
   const minPriceRef = useRef(null)
   const maxPriceRef = useRef(null)
-  // Guarded adjust-during-render sync (plans/filters.md §3.3), generalized
-  // from the single-field version Step 1 shipped in BrowsePage.jsx: keeps
-  // all five boxes honest against back/forward, bookmarks, and Clear all.
-  // `committed` is a fresh object every render — BrowsePage rebuilds it
-  // from searchParams each time — so comparing it by `!==` directly would
-  // always be true and this would loop forever. Collapsing it to a JSON
-  // signature turns the comparison back into a primitive `!==`,
-  // structurally identical to the shipped single-field guard.
+  // Guarded adjust-during-render sync, keeping all five boxes honest
+  // against back/forward, bookmarks, and Clear all. `committed` is a fresh
+  // object every render — BrowsePage rebuilds it from searchParams each
+  // time — so comparing it by `!==` directly would always be true and this
+  // would loop forever. Collapsing it to a JSON signature turns the
+  // comparison back into a primitive `!==`.
   //
   // Do NOT convert this to a useEffect: an effect would paint the stale
   // draft first and correct it a tick later — the documented anti-pattern,
@@ -165,10 +163,9 @@ function FilterBar({
       minPrice: normalizedMinPrice,
       maxPrice: normalizedMaxPrice,
     }
-    // Unconditional, not just when something changed (plans/filters.md
-    // §3.3 property 5): if `committed` doesn't change, the guard above
-    // never fires, so this is the only thing that trims a whitespace-only
-    // edit back into the box.
+    // Unconditional, not just when something changed: if `committed`
+    // doesn't change, the guard above never fires, so this is the only
+    // thing that trims a whitespace-only edit back into the box.
     setDraft(normalized)
     onApply(normalized)
   }
@@ -284,9 +281,8 @@ function FilterBar({
       </form>
 
       {/* Sort orders the set rather than narrowing it, and has no draft to
-          compose with — it commits on change and stays outside the form
-          (plans/filters.md §3.1, §3.2). Right-aligned from 640px, full
-          width at 375px. */}
+          compose with — it commits on change and stays outside the form.
+          Right-aligned from 640px, full width at 375px. */}
       <div className="flex justify-start sm:justify-end">
         <div className="flex flex-col gap-1">
           <label htmlFor="sort" className="text-sm text-zinc-700">

@@ -9,7 +9,7 @@ function handleSignIn() {
 }
 
 // Renders the right-hand auth slot from the three-valued useAuthStatus()
-// result (plan §5 Step 6). `checking` is a neutral placeholder sized like
+// result. `checking` is a neutral placeholder sized like
 // the other two states so resolving it doesn't reflow the header, and it
 // deliberately reads as neither "signed in" nor "signed out" while the
 // probe (GET /api/listings/mine) is in flight.

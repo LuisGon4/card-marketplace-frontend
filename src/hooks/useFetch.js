@@ -4,8 +4,8 @@ import { apiGet } from '../api/client'
 // The single read pattern for the whole app (CLAUDE.md "Data fetching").
 // `path` is a single string with the query string already included, or
 // `null` to skip fetching. A single primitive argument (rather than an
-// options object) lets the effect depend on [path] without useMemo/useCallback
-// gymnastics — see plans/homepage.md Step 4.
+// options object) lets the effect depend on [path] without
+// useMemo/useCallback gymnastics.
 
 /**
  * Error-shape decision: `error` is stored exactly as thrown, not wrapped or
@@ -23,7 +23,7 @@ import { apiGet } from '../api/client'
  * CLAUDE.md's "render the plain-text message" rule, and both shapes already
  * guarantee that. So there is nothing to fix here: introducing a wrapper
  * object (e.g. `{ message, status }`) would be a new type for every screen
- * to learn, in exchange for a property (`status`) that Step 8 never reads.
+ * to learn, in exchange for a property (`status`) that no consumer reads.
  * `error.status` stays `undefined` for network failures and a real number
  * for API errors — accurate, and available later if a screen ever needs to
  * branch on it (e.g. a 404 vs. a 500), without this hook having erased it.

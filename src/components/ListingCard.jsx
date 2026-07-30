@@ -28,8 +28,8 @@ function ListingCard({
     // description — or none at all — end up shorter than their neighbours.
     <article className="flex h-full flex-col rounded border border-zinc-200 p-4">
       {thumbnailUrl === null ? (
-        // bg-zinc-50 is the "nothing here" surface (plan §3 palette); the
-        // bg-zinc-100 below is the letterbox behind a real image.
+        // bg-zinc-50 is the "nothing here" surface; the bg-zinc-100 below
+        // is the letterbox behind a real image.
         <div className="flex aspect-square items-center justify-center bg-zinc-50 text-sm text-zinc-600">
           No image
         </div>

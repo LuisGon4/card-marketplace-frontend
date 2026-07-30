@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { apiGet } from '../api/client'
 
-// Root auth probe (plan §5 Step 6, TODO(Luis) #3 and #8). There is no
-// session-check endpoint (BACKEND.md "Discrepancies"), so this calls
+// Root auth probe (TODO(Luis) #3 and #8). There is no session-check
+// endpoint (BACKEND.md "Discrepancies"), so this calls
 // GET /api/listings/mine purely to learn *whether* someone is signed in.
 // The response body is discarded on purpose — an authenticated user with
 // zero listings returns `[]`, which still means signed in, and there is no

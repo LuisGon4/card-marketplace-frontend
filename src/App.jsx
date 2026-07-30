@@ -6,8 +6,8 @@ import { useAuthStatus } from './hooks/useAuthStatus'
 
 function App() {
   // Probed once at the root and passed down as a plain prop — no context,
-  // no global store (plan §5 Step 6). AppLayout renders Header, so this
-  // flows App -> AppLayout -> Header.
+  // no global store. AppLayout renders Header, so this flows App ->
+  // AppLayout -> Header.
   const authStatus = useAuthStatus()
 
   return (
