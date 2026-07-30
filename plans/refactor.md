@@ -258,6 +258,17 @@ never derived from `totalPages` — keep that comment at the point where `hasNex
 the error block (stays inline — one instance, and its `role="alert"` and
 render-the-server-message-verbatim comment stay with it), `EmptyState`, the grid, `Pager`.
 
+**Carried over from Step 3's review — decide here, don't skip it.** `page > 0` currently
+exists twice: as `isPastEnd` in `BrowsePage` and open-coded in `copy.js`'s `page > 0`
+branch. Step 3's unification was scoped to `hasFilters` and never named `isPastEnd`, so
+this was correctly left alone then — but this step rewrites the JSX that consumes it, so
+it is the cheap moment. Apply the plan's own test: would a change to one have to be made
+to the other? Note the two are not obviously the same question — `isPastEnd` gates the
+action buttons, while `copy.js`'s branch selects which message explains an empty page.
+Raise the call rather than making it silently: if they unify, the shared definition goes
+next to `hasAnyFilter` in `searchParams.js`; if they don't, say why in one line at
+`isPastEnd` so the next reader doesn't "fix" it.
+
 Verify: R5, R6, R7, R11, R14, R15, and a DOM diff — every element's `class` attribute
 must be byte-identical to before on a populated page, an empty page, and an error page.
 Tab through all three states and confirm the focus ring order is unchanged.

@@ -3,130 +3,17 @@ import { useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
-import { formatPrice, isPriceRangeCrossed, printingLabel } from '../lib/listings'
 import {
   FILTER_KEYS,
   SORT_OPTIONS,
+  hasAnyFilter,
   readBrowseParams,
   withFilters,
   withoutFilters,
   withPage,
   withSort,
 } from '../helpers/browse/searchParams'
-
-// Builds the "matching …" clause for the results summary, and the
-// generic-miss body ("Filters: …") in the empty state — one source of truth
-// for "what is applied", rendered in both places. FILTER_KEYS order
-// throughout. The two price bounds collapse into a single descriptor rather
-// than two: "price from $10.00 to $50.00" reads as one filter, not a pair.
-function describeFilters(committed) {
-  const parts = []
-  if (committed.cardName !== '') {
-    parts.push(`card name “${committed.cardName}”`)
-  }
-  if (committed.condition !== '') {
-    // Raw code, not the expanded label — matches how ListingCard renders it
-    // (ListingCard.jsx line 77), so the summary and the card speak the same
-    // vocabulary.
-    parts.push(`condition ${committed.condition}`)
-  }
-  if (committed.printing !== '') {
-    parts.push(`printing ${printingLabel(committed.printing)}`)
-  }
-  const { minPrice, maxPrice } = committed
-  // Neutral "from"/"to" wording, not an en dash (inconsistent screen-reader
-  // handling) and no "and up" / "or less" / "inclusive" wording — a
-  // deliberate choice by Luis to keep the announcement short, not a hedge
-  // about boundary behaviour (all three price bounds are inclusive).
-  if (minPrice !== '' && maxPrice !== '') {
-    parts.push(`price from ${formatPrice(Number(minPrice))} to ${formatPrice(Number(maxPrice))}`)
-  } else if (minPrice !== '') {
-    parts.push(`price from ${formatPrice(Number(minPrice))}`)
-  } else if (maxPrice !== '') {
-    parts.push(`price up to ${formatPrice(Number(maxPrice))}`)
-  }
-  return parts
-}
-
-// The single source of truth for the §3.7 empty-state table (six rows:
-// crossed range × page > 0/0 × how many filters are active) — stated once
-// here rather than re-derived separately by the heading, body, and action
-// buttons, which is what let "No listings yet" slip through on a search
-// miss in the first place (plans/search.md §3.4). Order matters: each
-// branch below runs only if the ones above it didn't match.
-function emptyStateCopy(page, committed) {
-  const hasFilters = FILTER_KEYS.some((key) => committed[key] !== '')
-
-  // Keyed on the *committed* values, not a draft — this describes the
-  // result actually on screen, which was produced by what was applied.
-  // FilterBar's price hint is keyed on the *draft* instead, since it
-  // describes what's about to be applied — two different questions, not
-  // an inconsistency.
-  //
-  // Crossed range takes top precedence over every other row, including
-  // page > 0: the backend returns 0 rows for a crossed range, not a 400,
-  // so when the bounds run backwards nothing else can explain why the
-  // page is empty — not the card name, not which page this is.
-  const isCrossedRange = isPriceRangeCrossed(committed.minPrice, committed.maxPrice)
-  if (isCrossedRange) {
-    return {
-      heading: 'Min price is higher than max price',
-      body: 'Nothing can match a range that runs backwards. Swap the two amounts, or clear one.',
-    }
-  }
-
-  // `page > 0` takes heading precedence over active filters otherwise:
-  // "you're past the end" is the more actionable fact regardless of
-  // whether the filters are fine (plans/filters.md §3.7, same precedent as
-  // plans/search.md §3.4).
-  if (page > 0) {
-    return {
-      heading: 'Nothing on this page',
-      body: hasFilters
-        ? 'No more results for these filters past this page.'
-        : 'This page is past the end of the results.',
-    }
-  }
-
-  if (!hasFilters) {
-    return {
-      heading: 'No listings yet',
-      body: "When sellers post cards, they'll appear here.",
-    }
-  }
-
-  // "Only X" means X is the single active filter among all five, checked
-  // against FILTER_KEYS so a future sixth filter can't silently break this
-  // test.
-  const isOnly = (key) =>
-    committed[key] !== '' && FILTER_KEYS.every((k) => k === key || committed[k] === '')
-
-  if (isOnly('cardName')) {
-    return {
-      heading: `No listings match “${committed.cardName}”`,
-      body: 'Check the spelling, or search a shorter part of the name.',
-    }
-  }
-
-  return {
-    heading: 'No listings match these filters',
-    body: `Filters: ${describeFilters(committed).join(', ')}. Try removing one.`,
-  }
-}
-
-function summaryText(page, totalPages, totalElements, committed) {
-  const listingWord = totalElements === 1 ? 'listing' : 'listings'
-  // Enumerates the active filters rather than counting them (plans/filters.md
-  // §3.6): this line lives in the page's only live region, so it's the only
-  // confirmation a screen-reader user gets about *which* filters were
-  // applied, not just that a number changed.
-  const descriptors = describeFilters(committed)
-  const querySuffix = descriptors.length > 0 ? ` matching ${descriptors.join(', ')}` : ''
-  // Guard: an empty result set has totalPages === 0, so "Page 1 of 0" would
-  // be nonsense — omit the page fragment rather than render it (plan §4).
-  if (totalPages === 0) return `${totalElements} ${listingWord}${querySuffix}`
-  return `Showing page ${page + 1} of ${totalPages} · ${totalElements} ${listingWord}${querySuffix}`
-}
+import { emptyStateCopy, summaryText } from '../helpers/browse/copy'
 
 function BrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -174,14 +61,13 @@ function BrowsePage() {
   const loaded = !loading && !error && data !== null
   const isEmpty = loaded && listings.length === 0
   // Forward availability comes from the response's own `hasNext` only — never
-  // derived from `totalPages` (plan §4 `PageResponse` handling).
+  // derived from `totalPages` (BACKEND.md's `PageResponse` shape).
   const hasNext = data?.hasNext ?? false
-  // Booleans driving the §3.7 empty-state table, computed once and reused
-  // by the heading/body (via `emptyStateCopy`) and the action buttons
-  // below, so there's a single source of truth instead of three parallel
-  // copies.
+  // Drive the action buttons below only — `emptyStateCopy` derives its own
+  // `hasFilters` from `committed` and open-codes `page > 0` itself, sharing
+  // the rule via `hasAnyFilter` rather than by receiving these values.
   const isPastEnd = page > 0
-  const hasFilters = FILTER_KEYS.some((key) => committed[key] !== '')
+  const hasFilters = hasAnyFilter(committed)
   const emptyState = isEmpty ? emptyStateCopy(page, committed) : null
 
   // Shared by Try again and Back to first page: both unmount the button

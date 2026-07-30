@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { CONDITION_OPTIONS, PRINTING_OPTIONS, isPriceRangeCrossed, readPrice } from '../lib/listings'
+import { hasAnyFilter } from '../helpers/browse/searchParams'
 
 // One shape for every free-text filter control. cardName is the only
 // search-style caller, and the price fields also use this, passing
@@ -176,10 +177,8 @@ function FilterBar({
     setPriceFormatBlocked(false)
   }
 
-  // Keyed on the draft, not committed: this hint describes what's about to
-  // be applied, while BrowsePage's empty-state row (keyed on committed)
-  // describes why the results already on screen are empty — two different
-  // questions, not an inconsistency.
+  // Keyed on the draft, not committed — see src/helpers/browse/copy.js's
+  // emptyStateCopy for why that row asks a different question.
   const draftMinPrice = readPrice(draft.minPrice)
   const draftMaxPrice = readPrice(draft.maxPrice)
   const isDraftPriceCrossed = isPriceRangeCrossed(draftMinPrice, draftMaxPrice)
@@ -189,11 +188,9 @@ function FilterBar({
       ? 'Min price cannot be higher than max price'
       : null
 
-  // Drives this component's own "Clear all" button. BrowsePage's
-  // empty-state button of the same name computes its own equivalent from
-  // the same `committed` values it already has — two call sites, same
-  // definition, not shared code.
-  const hasFilters = Object.values(committed).some((value) => value !== '')
+  // Drives this component's own "Clear all" button — see `hasAnyFilter`'s
+  // definition in src/helpers/browse/searchParams.js for the other call sites.
+  const hasFilters = hasAnyFilter(committed)
 
   return (
     <div className="space-y-4">

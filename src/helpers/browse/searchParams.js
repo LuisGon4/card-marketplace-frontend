@@ -20,6 +20,13 @@ const VALID_SORT_VALUES = new Set(SORT_OPTIONS.map((option) => option.value))
 // iterates this so no filter can be special-cased by accident.
 export const FILTER_KEYS = ['cardName', 'condition', 'printing', 'minPrice', 'maxPrice']
 
+// Whether any of the five filters is active. One definition shared by the
+// empty-state table, BrowsePage's action buttons, and FilterBar's own
+// Clear-all button — all three were asking the same question.
+export function hasAnyFilter(committed) {
+  return FILTER_KEYS.some((key) => committed[key] !== '')
+}
+
 // Read + clamp the URL's `page` param. The URL is untrusted input (a human
 // can hand-edit it), so an invalid value is treated as page 0 rather than
 // sent to the API — clamping happens here, on read, and the address bar is
