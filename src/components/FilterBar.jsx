@@ -21,9 +21,10 @@ function TextFilterField({
   type = 'search',
   inputMode,
   'aria-describedby': ariaDescribedBy,
+  className = '',
 }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className={['flex flex-col gap-1', className].filter(Boolean).join(' ')}>
       <label htmlFor={id} className="text-sm text-zinc-700">
         {label}
       </label>
@@ -197,12 +198,13 @@ function FilterBar({
         onSubmit={handleApply}
         className="space-y-4 rounded border border-zinc-200 p-4"
       >
-        {/* Five-cell grid — the indefinite state, not a step toward six. At
-            sm:grid-cols-2, the price pair straddles a row boundary rather
-            than landing side by side. The pair is deliberately not nested
-            and not given a span: the flat layout is what encodes that min
-            price and max price are two independent filters, not one
-            compound control. */}
+        {/* Five-cell grid — the indefinite state, not a step toward six. The
+            card-name cell alone carries sm:col-span-2, which is what keeps
+            min price and max price adjacent at both sm:grid-cols-2 and
+            lg:grid-cols-3. The pair itself is deliberately not nested and
+            not given a span: the flat layout is what encodes that min price
+            and max price are two independent filters, not one compound
+            control. */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <TextFilterField
             id="cardName"
@@ -212,6 +214,7 @@ function FilterBar({
             value={draft.cardName}
             onChange={(value) => setDraft((prev) => ({ ...prev, cardName: value }))}
             ref={firstFieldRef}
+            className="sm:col-span-2"
           />
           <SelectFilterField
             id="condition"

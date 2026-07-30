@@ -182,8 +182,8 @@ function BrowsePage() {
           {(isPastEnd || hasFilters) && (
             <>
               {/* A legitimately empty page N (e.g. the catalogue shrank
-                  after this page was bookmarked, or these filters only
-                  have fewer pages than expected) is a different situation
+                  after this page was bookmarked, or these filters have
+                  fewer pages than expected) is a different situation
                   from an empty result at page 0 — offer a way back. */}
               {isPastEnd && (
                 <SecondaryButton
