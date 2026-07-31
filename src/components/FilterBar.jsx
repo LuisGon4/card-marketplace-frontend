@@ -285,8 +285,9 @@ function FilterBar({
 
       {/* Sort orders the set rather than narrowing it, and has no draft to
           compose with — it commits on change and stays outside the form.
-          Right-aligned from 640px, full width at 375px. */}
-      <div className="flex justify-start sm:justify-end">
+          The flex wrapper is what keeps the control sized to its own label
+          and select instead of stretching across the row. */}
+      <div className="flex">
         <div className="flex flex-col gap-1">
           <label htmlFor="sort" className="text-sm text-zinc-700">
             Sort by
