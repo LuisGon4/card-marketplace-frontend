@@ -23,11 +23,8 @@ function PriceBlock({ askingPrice, marketPrice, priceFlagged, className = '' }) 
         </p>
       )}
       {showFlagBadge && (
-        // TODO(Luis): BACKEND.md doesn't define whether priceFlagged means
-        // above or below market. Label stays neutral until confirmed —
-        // both prices are shown above so the reader can compare.
         <span className="inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-          Price flagged
+          Above market value
         </span>
       )}
     </div>
