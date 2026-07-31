@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import AppLayout from './components/AppLayout'
 import BrowsePage from './pages/BrowsePage'
+import ListingDetailPage from './pages/ListingDetailPage'
 import NotFoundPage from './pages/NotFoundPage'
 import { useAuthStatus } from './hooks/useAuthStatus'
 
@@ -14,6 +15,7 @@ function App() {
     <AppLayout authStatus={authStatus}>
       <Routes>
         <Route path="/" element={<BrowsePage />} />
+        <Route path="/listings/:id" element={<ListingDetailPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppLayout>
