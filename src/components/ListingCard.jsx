@@ -1,11 +1,13 @@
 // Pure, presentational card for a ListingSummaryResponse (BACKEND.md §1).
 // No data loading, no fetch — the page that lists these owns fetching.
-// Not a <Link> this cycle: listing detail doesn't exist yet, so an anchor
-// here would 404. The detail cycle converts this to a <Link>.
 
-import { formatPrice, printingLabel } from '../lib/listings'
+import { Link } from 'react-router'
+import { conditionPrintingLabel } from '../lib/listings'
+import ListingImage from './ListingImage'
+import PriceBlock from './PriceBlock'
 
 function ListingCard({
+  id,
   cardName,
   condition,
   printing,
@@ -16,63 +18,49 @@ function ListingCard({
   description,
   sellerUsername,
   thumbnailUrl,
+  backTo,
 }) {
-  // BACKEND.md: "priceFlagged is only meaningful when marketPrice is
-  // non-null." The badge must never appear against a null market price,
-  // even if the server sends priceFlagged: true alongside it.
-  const showFlagBadge = marketPrice !== null && priceFlagged === true
-
   return (
     // h-full + flex column so every card fills its grid row and the seller
     // meta pins to the bottom (mt-auto). Without this, cards with a shorter
     // description — or none at all — end up shorter than their neighbours.
-    <article className="flex h-full flex-col rounded border border-zinc-200 p-4">
-      {thumbnailUrl === null ? (
-        // bg-zinc-50 is the "nothing here" surface; the bg-zinc-100 below
-        // is the letterbox behind a real image.
-        <div className="flex aspect-square items-center justify-center bg-zinc-50 text-sm text-zinc-600">
-          No image
-        </div>
-      ) : (
-        <img
-          src={thumbnailUrl}
-          alt={cardName}
-          loading="lazy"
-          className="aspect-square w-full bg-zinc-100 object-contain"
-        />
-      )}
+    // relative anchors the title link's stretched overlay below — see the
+    // comment there.
+    <article className="relative flex h-full flex-col rounded border border-zinc-200 p-4">
+      <ListingImage src={thumbnailUrl} alt={cardName} loading="lazy" />
 
       <div className="mt-3 space-y-1">
         {/* h2, not h3: the page's only other heading is BrowsePage's h1, so
             an h3 here would skip a level and break the heading outline that
             screen-reader users navigate by. A repeating h2 per grid item is
             the standard gallery pattern. */}
-        <h2 className="text-base font-medium text-zinc-900">{cardName}</h2>
-        <p className="text-sm text-zinc-700">
-          {condition} · {printingLabel(printing)}
-        </p>
+        <h2 className="text-base font-medium text-zinc-900">
+          {/* after:absolute after:inset-0 stretches this link's hit area to
+              cover the whole card, so the entire card is clickable while the
+              accessible name stays just the title. That pseudo-element
+              positions against the nearest positioned ancestor — the
+              article's `relative` above. Nothing between here and the
+              viewport (the <li>, the grid <ul>, the page's <div>) is
+              positioned, so removing `relative` from the article makes the
+              overlay resolve against the viewport instead, stretching this
+              one listing's click target across most of the page. */}
+          <Link
+            to={`/listings/${id}`}
+            state={{ backTo }}
+            className="text-zinc-900 hover:underline after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            {cardName}
+          </Link>
+        </h2>
+        <p className="text-sm text-zinc-700">{conditionPrintingLabel(condition, printing)}</p>
       </div>
 
-      <div className="mt-3 space-y-1">
-        <p className="tabular-nums text-base font-medium text-zinc-900">
-          {formatPrice(askingPrice)}
-        </p>
-        {marketPrice === null ? (
-          <p className="text-sm text-zinc-600">No market price</p>
-        ) : (
-          <p className="tabular-nums text-sm text-zinc-600">
-            Market {formatPrice(marketPrice)}
-          </p>
-        )}
-        {showFlagBadge && (
-          // TODO(Luis): BACKEND.md doesn't define whether priceFlagged means
-          // above or below market. Label stays neutral until confirmed —
-          // both prices are shown above so the reader can compare.
-          <span className="inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-            Price flagged
-          </span>
-        )}
-      </div>
+      <PriceBlock
+        askingPrice={askingPrice}
+        marketPrice={marketPrice}
+        priceFlagged={priceFlagged}
+        className="mt-3"
+      />
 
       {description && (
         <p className="mt-3 line-clamp-2 text-sm text-zinc-700">{description}</p>

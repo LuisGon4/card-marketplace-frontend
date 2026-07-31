@@ -1,9 +1,10 @@
 import { useRef } from 'react'
-import { useSearchParams } from 'react-router'
+import { useLocation, useSearchParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
 import SecondaryButton from '../components/SecondaryButton'
+import ErrorNotice from '../components/ErrorNotice'
 import EmptyState from '../components/EmptyState'
 import Pager from '../components/Pager'
 import {
@@ -20,6 +21,12 @@ import { emptyStateCopy, summaryText } from '../helpers/browse/copy'
 
 function BrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
+
+  // location.search, not searchParams.toString(): this round-trips the
+  // address bar byte-for-byte, including params the page ignores, matching
+  // the rule that the address bar is never rewritten to "correct" itself.
+  const backTo = `${location.pathname}${location.search}`
 
   // Untrusted URL input, clamped on every read inside readBrowseParams —
   // never rewritten back into the address bar. `?page=-3&sort=bogus` must
@@ -155,19 +162,13 @@ function BrowsePage() {
       </div>
 
       {error && (
-        <div role="alert" className="space-y-3 border border-red-300 bg-red-50 p-4">
-          {/* Server's plain-text message, rendered verbatim — never rewritten
-              or paraphrased (CLAUDE.md "API access"). */}
-          <p className="text-sm text-zinc-900">{error.message}</p>
-          <SecondaryButton
-            onClick={() => {
-              refetch()
-              focusPageHeading()
-            }}
-          >
-            Try again
-          </SecondaryButton>
-        </div>
+        <ErrorNotice
+          message={error.message}
+          onRetry={() => {
+            refetch()
+            focusPageHeading()
+          }}
+        />
       )}
 
       {isEmpty && (
@@ -209,7 +210,7 @@ function BrowsePage() {
         <ul className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {listings.map((listing) => (
             <li key={listing.id}>
-              <ListingCard {...listing} />
+              <ListingCard {...listing} backTo={backTo} />
             </li>
           ))}
         </ul>

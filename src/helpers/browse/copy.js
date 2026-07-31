@@ -9,7 +9,7 @@ import { FILTER_KEYS, hasAnyFilter } from './searchParams'
 // express without special-casing two of the five.
 const FILTER_DESCRIPTORS = {
   cardName: (value) => `card name “${value}”`,
-  // Raw code, not the expanded label — matches how ListingCard renders it,
+  // Raw code, not the expanded label — matches conditionPrintingLabel,
   // so the summary and the card speak the same vocabulary.
   condition: (value) => `condition ${value}`,
   printing: (value) => `printing ${printingLabel(value)}`,
