@@ -32,6 +32,10 @@ export function printingLabel(printing) {
   return PRINTING_LABELS[printing] ?? printing
 }
 
+export function conditionPrintingLabel(condition, printing) {
+  return `${condition} · ${printingLabel(printing)}`
+}
+
 // No currency field exists on the wire — BACKEND.md documents USD as a
 // property of the deployment, not the payload — so 'USD' below is not
 // read from any response and can't be swapped for a per-listing value.
