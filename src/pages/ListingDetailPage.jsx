@@ -2,11 +2,10 @@ import { useRef } from 'react'
 import { useLocation, useParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import TextLink from '../components/TextLink'
-import ListingImage from '../components/ListingImage'
+import ImageGallery from '../components/ImageGallery'
 import PriceBlock from '../components/PriceBlock'
 import ErrorNotice from '../components/ErrorNotice'
 import { conditionPrintingLabel } from '../lib/listings'
-import { imageAlt } from '../helpers/detail/copy'
 import { readBackTo } from '../helpers/detail/backTo'
 
 // Label + value row for a single fact (Description, Seller, Location).
@@ -67,12 +66,7 @@ function ListingDetailPage() {
 
       {loaded && (
         <div className="grid gap-6 md:grid-cols-2">
-          {/* No loading="lazy" here: this is the largest above-the-fold
-              image at every breakpoint, unlike ListingCard's thumbnails. */}
-          <ListingImage
-            src={data.imageUrls[0] ?? null}
-            alt={imageAlt(data.cardName, 0, data.imageUrls.length)}
-          />
+          <ImageGallery imageUrls={data.imageUrls} cardName={data.cardName} />
 
           <div className="space-y-4">
             <p className="text-sm text-zinc-700">
