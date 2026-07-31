@@ -4,6 +4,7 @@ import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
 import SecondaryButton from '../components/SecondaryButton'
+import ErrorNotice from '../components/ErrorNotice'
 import EmptyState from '../components/EmptyState'
 import Pager from '../components/Pager'
 import {
@@ -155,19 +156,13 @@ function BrowsePage() {
       </div>
 
       {error && (
-        <div role="alert" className="space-y-3 border border-red-300 bg-red-50 p-4">
-          {/* Server's plain-text message, rendered verbatim — never rewritten
-              or paraphrased (CLAUDE.md "API access"). */}
-          <p className="text-sm text-zinc-900">{error.message}</p>
-          <SecondaryButton
-            onClick={() => {
-              refetch()
-              focusPageHeading()
-            }}
-          >
-            Try again
-          </SecondaryButton>
-        </div>
+        <ErrorNotice
+          message={error.message}
+          onRetry={() => {
+            refetch()
+            focusPageHeading()
+          }}
+        />
       )}
 
       {isEmpty && (
