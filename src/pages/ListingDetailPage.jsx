@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useLocation, useParams } from 'react-router'
 import { useFetch } from '../hooks/useFetch'
 import TextLink from '../components/TextLink'
+import PageHeading from '../components/PageHeading'
 import ImageGallery from '../components/ImageGallery'
 import PriceBlock from '../components/PriceBlock'
 import ErrorNotice from '../components/ErrorNotice'
@@ -41,12 +42,7 @@ function ListingDetailPage() {
     <div className="space-y-6">
       <TextLink to={readBackTo(location.state)}>Back to browse</TextLink>
 
-      {/* tabIndex={-1} is not a tab stop; it exists so focusPageHeading can
-          land here. Removing it silently reintroduces the focus-to-<body>
-          bug. */}
-      <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold text-zinc-900">
-        {data?.cardName ?? 'Listing'}
-      </h1>
+      <PageHeading ref={headingRef}>{data?.cardName ?? 'Listing'}</PageHeading>
 
       {/* Unlike BrowsePage, this page has no summary line to share the live
           region with — a single listing has nothing left to count. */}

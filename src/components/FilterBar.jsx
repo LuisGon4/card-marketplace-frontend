@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { CONDITION_OPTIONS, PRINTING_OPTIONS, isPriceRangeCrossed, readPrice } from '../lib/listings'
 import { hasAnyFilter } from '../helpers/browse/searchParams'
 import SecondaryButton from './SecondaryButton'
+import PrimaryButton from './PrimaryButton'
 
 // One shape for every free-text filter control. cardName is the only
 // search-style caller, and the price fields also use this, passing
@@ -271,12 +272,7 @@ function FilterBar({
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="submit"
-            className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            Apply filters
-          </button>
+          <PrimaryButton type="submit">Apply filters</PrimaryButton>
           {/* Only while a filter is committed — clearing an already-empty
               bar has nothing to do, generalized to all five filters. */}
           {hasFilters && <SecondaryButton onClick={onClearAll}>Clear all</SecondaryButton>}
