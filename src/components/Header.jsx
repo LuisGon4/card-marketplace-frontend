@@ -1,3 +1,4 @@
+import { NavLink } from 'react-router'
 import { API_BASE_URL } from '../api/client'
 import TextLink from './TextLink'
 
@@ -49,9 +50,12 @@ function Header({ authStatus, user }) {
     <header className="border-b border-zinc-200 bg-zinc-50">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
         <div className="flex items-center gap-6">
-          <span className="text-base font-medium text-zinc-900">
+          {/* Not wrapped in its own <nav>: the <header> is already a banner
+              landmark, and a second navigation landmark would be
+              indistinguishable from the one below without labelling both. */}
+          <NavLink to="/" className="text-base font-medium text-zinc-900">
             Card Marketplace
-          </span>
+          </NavLink>
           {/* Gated on signedIn so it appears in the same tick the auth slot
               resolves, rather than flashing for a signed-out visitor. */}
           {authStatus === 'signedIn' && (
