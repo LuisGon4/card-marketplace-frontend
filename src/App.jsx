@@ -3,6 +3,7 @@ import AppLayout from './components/AppLayout'
 import BrowsePage from './pages/BrowsePage'
 import ListingDetailPage from './pages/ListingDetailPage'
 import ConversationsPage from './pages/ConversationsPage'
+import ConversationThreadPage from './pages/ConversationThreadPage'
 import NotFoundPage from './pages/NotFoundPage'
 import { useAuthStatus } from './hooks/useAuthStatus'
 
@@ -18,6 +19,10 @@ function App() {
         <Route path="/" element={<BrowsePage />} />
         <Route path="/listings/:id" element={<ListingDetailPage />} />
         <Route path="/conversations" element={<ConversationsPage authStatus={authStatus} />} />
+        <Route
+          path="/conversations/:id"
+          element={<ConversationThreadPage authStatus={authStatus} user={user} />}
+        />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppLayout>
