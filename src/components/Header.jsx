@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../api/client'
+import TextLink from './TextLink'
 
 // Login is a full-page redirect, not an API call — there is no login
 // endpoint callable from JS (CLAUDE.md "Auth in the UI", BACKEND.md §3).
@@ -47,9 +48,18 @@ function Header({ authStatus, user }) {
   return (
     <header className="border-b border-zinc-200 bg-zinc-50">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <span className="text-base font-medium text-zinc-900">
-          Card Marketplace
-        </span>
+        <div className="flex items-center gap-6">
+          <span className="text-base font-medium text-zinc-900">
+            Card Marketplace
+          </span>
+          {/* Gated on signedIn so it appears in the same tick the auth slot
+              resolves, rather than flashing for a signed-out visitor. */}
+          {authStatus === 'signedIn' && (
+            <nav>
+              <TextLink to="/conversations">Conversations</TextLink>
+            </nav>
+          )}
+        </div>
         <AuthSlot authStatus={authStatus} user={user} />
       </div>
     </header>
