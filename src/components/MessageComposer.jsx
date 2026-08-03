@@ -46,11 +46,11 @@ function MessageComposer({ connected, onSend }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <div className="flex flex-1 flex-col gap-1">
-        <label htmlFor="message-draft" className="text-sm text-zinc-700">
-          Message
-        </label>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-1">
+      <label htmlFor="message-draft" className="text-sm text-zinc-700">
+        Message
+      </label>
+      <div className="flex gap-2">
         <textarea
           id="message-draft"
           rows={2}
@@ -62,15 +62,15 @@ function MessageComposer({ connected, onSend }) {
           // disabling a focused field drops its focus, so a reconnect blip
           // would eat a half-typed message. Only Send below is disabled —
           // that alone keeps a blank or unsendable frame off the wire.
-          className="w-full resize-none rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          className="flex-1 resize-none rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
         />
-        <p id={hintId} className="text-xs text-zinc-500">
-          {composerHint}
-        </p>
+        <PrimaryButton type="submit" disabled={!canSend}>
+          Send
+        </PrimaryButton>
       </div>
-      <PrimaryButton type="submit" disabled={!canSend}>
-        Send
-      </PrimaryButton>
+      <p id={hintId} className="text-xs text-zinc-500">
+        {composerHint}
+      </p>
     </form>
   )
 }
