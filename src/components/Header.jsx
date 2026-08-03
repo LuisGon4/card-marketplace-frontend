@@ -12,16 +12,14 @@ function handleSignIn() {
 // result. `checking` is a neutral placeholder sized like
 // the other two states so resolving it doesn't reflow the header, and it
 // deliberately reads as neither "signed in" nor "signed out" while the
-// probe (GET /api/listings/mine) is in flight.
-function AuthSlot({ authStatus }) {
+// probe (GET /api/users/me) is in flight.
+function AuthSlot({ authStatus, user }) {
   if (authStatus === 'signedIn') {
-    // Generic text only — there is no username source (TODO(Luis) #3, no
-    // /api/users/me). sellerUsername on a listing is the *seller's* name,
-    // not the current user's, and a signed-in user with no listings gets
-    // `[]` back from the probe anyway.
+    // user should always be set alongside 'signedIn', but fall back rather
+    // than render "Signed in as undefined" if that invariant ever breaks.
     return (
       <span className="rounded border border-transparent px-3 py-1.5 text-sm font-medium text-zinc-900">
-        Signed in
+        {user ? `Signed in as ${user.username}` : 'Signed in'}
       </span>
     )
   }
@@ -45,14 +43,14 @@ function AuthSlot({ authStatus }) {
   )
 }
 
-function Header({ authStatus }) {
+function Header({ authStatus, user }) {
   return (
     <header className="border-b border-zinc-200 bg-zinc-50">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
         <span className="text-base font-medium text-zinc-900">
           Card Marketplace
         </span>
-        <AuthSlot authStatus={authStatus} />
+        <AuthSlot authStatus={authStatus} user={user} />
       </div>
     </header>
   )

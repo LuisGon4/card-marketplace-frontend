@@ -6,13 +6,13 @@ import Header from './Header'
 // rendered from a route element — App.jsx decides the routing, this
 // component just owns the shell.
 //
-// `authStatus` passes straight through to Header — App owns the probe
-// (useAuthStatus), this component is just the pipe: no context, no global
-// store.
-function AppLayout({ children, authStatus }) {
+// `authStatus` and `user` pass straight through to Header — App owns the
+// probe (useAuthStatus), this component is just the pipe: no context, no
+// global store.
+function AppLayout({ children, authStatus, user }) {
   return (
     <>
-      <Header authStatus={authStatus} />
+      <Header authStatus={authStatus} user={user} />
       <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
     </>
   )
