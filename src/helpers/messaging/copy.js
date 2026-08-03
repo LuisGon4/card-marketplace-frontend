@@ -44,6 +44,16 @@ export function messageAuthorLabel(isOwn, senderUsername) {
   return isOwn ? 'You' : senderUsername
 }
 
+// The socket status line. `error` is the broker's own text (lock #10) —
+// shown verbatim instead of a generic "disconnected" string, so a session
+// expiring mid-thread is legible rather than a silent reconnect loop.
+export function connectionStatusText(status, error) {
+  if (status === 'connecting') return 'Connecting…'
+  if (status === 'connected') return 'Connected'
+  if (status === 'disconnected') return error ?? 'Disconnected. Reconnecting…'
+  return null
+}
+
 // Copy for the listing detail action row (ListingDetailPage): the
 // signed-out hint and the own-listing line that stand in for the
 // "Message seller" button in those two states.
