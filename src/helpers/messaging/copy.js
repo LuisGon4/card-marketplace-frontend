@@ -43,3 +43,11 @@ export function threadSubline(otherUsername, createdAt) {
 export function messageAuthorLabel(isOwn, senderUsername) {
   return isOwn ? 'You' : senderUsername
 }
+
+// Copy for the listing detail action row (ListingDetailPage): the
+// signed-out hint and the own-listing line that stand in for the
+// "Message seller" button in those two states.
+
+export const messageSellerSignedOutCopy = 'Sign in to message the seller.'
+
+export const ownListingCopy = 'This is your listing.'

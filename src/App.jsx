@@ -17,7 +17,10 @@ function App() {
     <AppLayout authStatus={authStatus} user={user}>
       <Routes>
         <Route path="/" element={<BrowsePage />} />
-        <Route path="/listings/:id" element={<ListingDetailPage />} />
+        <Route
+          path="/listings/:id"
+          element={<ListingDetailPage authStatus={authStatus} user={user} />}
+        />
         <Route path="/conversations" element={<ConversationsPage authStatus={authStatus} />} />
         <Route
           path="/conversations/:id"
