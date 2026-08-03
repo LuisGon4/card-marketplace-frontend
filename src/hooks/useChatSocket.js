@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Client } from '@stomp/stompjs'
 import { API_BASE_URL } from '../api/client'
-import { socketUrl, topicFor } from '../helpers/messaging/socket'
+import { socketUrl, topicFor, sendDestinationFor } from '../helpers/messaging/socket'
 
 // One STOMP Client per (conversationId, mount), built fresh inside the
 // effect below. Never a module singleton, never a ref carried across ids or
@@ -25,6 +25,11 @@ export function useChatSocket(conversationId, { enabled, onMessage }) {
   useEffect(() => {
     onMessageRef.current = onMessage
   }, [onMessage])
+
+  // Holds the live Client so sendMessage can reach it without being a
+  // dependency of the effect below — the same reasoning as onMessageRef,
+  // just written by the effect that owns the client instead of by props.
+  const clientRef = useRef(null)
 
   // This effect's job is exactly the pattern react-hooks/set-state-in-effect
   // exists to steer people away from *by default* — but the exception it
@@ -89,10 +94,12 @@ export function useChatSocket(conversationId, { enabled, onMessage }) {
       },
     })
 
+    clientRef.current = client
     client.activate()
 
     return () => {
       cancelled = true
+      clientRef.current = null
       // deactivate() returns a Promise that resolves once the socket has
       // fully closed. A useEffect cleanup can't be async, and it doesn't
       // need to be: reconnect attempts stop at this call, not at the
@@ -102,5 +109,27 @@ export function useChatSocket(conversationId, { enabled, onMessage }) {
   }, [conversationId, enabled])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  return { status, error, connectionEpoch }
+  // Returns whether a frame was actually published — the composer clears
+  // its draft only on true. client.connected is the required guard, not a
+  // defensive one: publish() throws outright when there is no connection,
+  // rather than queueing or failing silently.
+  //
+  // There is no ack for a send (BACKEND.md) — the echo on the topic is the
+  // only confirmation, so a dropped frame is silent. Deliberately no
+  // timeout, no pending/unconfirmed state, no retry here: all three would
+  // invent a delivery semantic the protocol doesn't offer.
+  const sendMessage = useCallback(
+    (content) => {
+      const client = clientRef.current
+      if (!client || !client.connected) return false
+      client.publish({
+        destination: sendDestinationFor(conversationId),
+        body: JSON.stringify({ content }),
+      })
+      return true
+    },
+    [conversationId],
+  )
+
+  return { status, error, connectionEpoch, sendMessage }
 }

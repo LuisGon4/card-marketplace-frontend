@@ -61,3 +61,7 @@ export function connectionStatusText(status, error) {
 export const messageSellerSignedOutCopy = 'Sign in to message the seller.'
 
 export const ownListingCopy = 'This is your listing.'
+
+// Copy for MessageComposer.
+
+export const composerHint = 'Enter to send, Shift+Enter for a new line'

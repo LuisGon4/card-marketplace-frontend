@@ -7,6 +7,7 @@ import PageHeading from '../components/PageHeading'
 import ErrorNotice from '../components/ErrorNotice'
 import EmptyState from '../components/EmptyState'
 import MessageList from '../components/MessageList'
+import MessageComposer from '../components/MessageComposer'
 import { findConversation } from '../helpers/messaging/conversations'
 import { mergeById } from '../helpers/messaging/messages'
 import {
@@ -51,6 +52,17 @@ function ConversationThreadPage({ authStatus, user }) {
   // the entire history once that lands. Buffering and flushing it *after*
   // the first history merge holds both invariants: history is always
   // ordered before any live frame, and no frame is ever dropped.
+  //
+  // Deliberately a ref, not the historyLoadedOnce state below: the flip has
+  // to be synchronous with the merge effect's own body (so a live frame
+  // arriving in the same tick sees the post-flip value) and with
+  // handleLiveMessage's read (called from outside React's render cycle, off
+  // a WS callback). Routing that decision through state would add a render
+  // in between — a frame arriving in that gap would land in the buffer and
+  // then wait for the *next* history refetch to be flushed, which may not
+  // come soon. historyLoadedOnce (state) exists only so the render below has
+  // something to read; it is set from the same spot this ref flips, never
+  // read to make a buffering decision itself.
   const historyLoadedOnceRef = useRef(false)
   const pendingLiveFramesRef = useRef([])
 
@@ -68,9 +80,18 @@ function ConversationThreadPage({ authStatus, user }) {
   // "redundant" — the component is not remounting, so nothing else clears
   // `messages` for you.
   const [renderedId, setRenderedId] = useState(id)
+  // Mirrors historyLoadedOnceRef below, but as state: messagesLoaded/loaded
+  // read it during render, and per the same rule as `messages` above, a
+  // value read synchronously during paint must reset in this render-phase
+  // block, not a tick later in an effect — otherwise, for one render, the
+  // old thread's "history has loaded" would combine with the new thread's
+  // already-cleared `messages`, and the page would flash "loaded" for
+  // history it hasn't actually fetched yet.
+  const [historyLoadedOnce, setHistoryLoadedOnce] = useState(false)
   if (renderedId !== id) {
     setRenderedId(id)
     setMessages([])
+    setHistoryLoadedOnce(false)
   }
 
   // The buffer above resets in its own effect rather than in the render-time
@@ -99,6 +120,7 @@ function ConversationThreadPage({ authStatus, user }) {
 
     if (!historyLoadedOnceRef.current) {
       historyLoadedOnceRef.current = true
+      setHistoryLoadedOnce(true)
       const buffered = pendingLiveFramesRef.current
       pendingLiveFramesRef.current = []
       if (buffered.length > 0) {
@@ -127,7 +149,14 @@ function ConversationThreadPage({ authStatus, user }) {
   // means "both requests came back 200 and the id still isn't in the list".
   const error = messagesError ?? conversationsError
   const conversationsLoaded = isSignedIn && !conversationsError && conversations !== null
-  const messagesLoaded = isSignedIn && !messagesError && history !== null
+  // historyLoadedOnce, not `history !== null`: useFetch nulls `history` at
+  // the start of every request, including the reconnect/first-connect
+  // refetch below (D8). Gating on the raw value would flip this false for
+  // the duration of that refetch and unmount the composer, revert the
+  // heading to its placeholder, and re-show the empty state — all while a
+  // transcript is already on screen. Once history has loaded for this id,
+  // a transient refetch no longer un-loads the page.
+  const messagesLoaded = isSignedIn && !messagesError && historyLoadedOnce
   const conversation = conversationsLoaded ? findConversation(conversations, id) : null
   // A non-empty transcript is proof of participation — the messages fetch
   // only 200s with real content for a participant — so it overrides a
@@ -147,10 +176,10 @@ function ConversationThreadPage({ authStatus, user }) {
   // that whole render too, so gating on "not yet loaded" here keeps the
   // loading text up instead of leaving a one-commit gap where nothing
   // renders. Do not "simplify" this back to the hooks' `loading` flags.
-  // The added `messages.length === 0` is what stops a reconnect's automatic
-  // refetch (below) from re-announcing "Loading messages…": that refetch
-  // briefly nulls `history`, which would otherwise flip this back on even
-  // though the transcript already has content on screen.
+  // messagesLoaded no longer flips false on a reconnect refetch (see its
+  // definition above), so `messages.length === 0` is no longer load-bearing
+  // for that race — it stays as a second, independent reason "there's
+  // nothing to show yet" can be true, for a genuinely empty conversation.
   const showLoading =
     authStatus === 'checking' ||
     (isSignedIn && !error && !(conversationsLoaded && messagesLoaded) && messages.length === 0)
@@ -165,6 +194,7 @@ function ConversationThreadPage({ authStatus, user }) {
     status: connectionStatus,
     error: connectionError,
     connectionEpoch,
+    sendMessage,
   } = useChatSocket(id, { enabled: socketEnabled, onMessage: handleLiveMessage })
 
   // Refetches history on every transition into 'connected', including the
@@ -236,6 +266,10 @@ function ConversationThreadPage({ authStatus, user }) {
       )}
 
       <MessageList messages={messages} currentUserId={user?.id} />
+
+      {/* No composer on an error, a 403, or a not-in-list page — those
+          states have nothing to send a message into. */}
+      {loaded && <MessageComposer connected={connectionStatus === 'connected'} onSend={sendMessage} />}
     </div>
   )
 }
