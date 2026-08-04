@@ -1,5 +1,10 @@
-// The only module in the app that calls fetch. See CLAUDE.md "API access"
-// and BACKEND.md §2-3 for the contract this module implements.
+// This module implements the API contract in BACKEND.md §2-3 — see
+// CLAUDE.md "API access" for the one-module-per-host rule. It is the only
+// module in the app that calls fetch for that contract. src/api/s3.js
+// (arriving in the create-listing cycle, not yet in this tree) is the one
+// sanctioned exception: the presigned S3 PUT is not an API call — different
+// host, and the signature is the credential, so it must send neither
+// cookies nor CSRF. Any new API call still belongs in this file.
 
 // Read once at module load. If this is missing, every request would silently
 // resolve against the Vite dev origin and 404 in a confusing way — fail loud
@@ -72,15 +77,23 @@ export function apiGet(path, { signal } = {}) {
   return request('GET', path, { signal })
 }
 
-// apiPost is now exercised by the conversation-start flow (POST
-// /api/conversations). apiPatch and apiDelete are still unexercised —
-// TODO(Luis): review before their first mutation ships (edit/delete/
-// reactivate listing, image upload).
+// apiPost is exercised by the conversation-start flow (POST
+// /api/conversations) and, from the create-listing cycle, by
+// POST /api/listings. apiPatch and apiDelete are still unexercised —
+// TODO(Luis): review before their first mutation ships (the edit/delete/
+// reactivate listing cycle).
 //
-// Open item for review: when the XSRF-TOKEN cookie is absent, `request`
-// above omits the header and sends the write anyway, which 403s in prod
-// with nothing indicating a missing token caused it. GET /api/csrf exists
-// to prime the cookie and is called from nowhere.
+// Ruled on by Luis, 2026-08-03: when the XSRF-TOKEN cookie is absent,
+// `request` above omits the header and sends the write anyway, which 403s
+// in prod with nothing indicating a missing token caused it. This stays
+// deliberately unguarded and GET /api/csrf stays uncalled — the dev profile
+// accepts anonymous writes with no XSRF cookie at all, so a client-side
+// guard would break every flow that currently works locally, and it would
+// invent a failure mode the contract does not describe. Not an open
+// question; a recorded decision.
+//
+// src/api/s3.js (arriving in the create-listing cycle) is the one sanctioned
+// fetch outside this module — see this file's header comment.
 export function apiPost(path, body, { signal } = {}) {
   return request('POST', path, { signal, body })
 }
