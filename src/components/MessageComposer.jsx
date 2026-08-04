@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import PrimaryButton from './PrimaryButton'
 import { composerHint } from '../helpers/messaging/copy'
+import { FIELD_CONTROL_CLASS } from '../lib/fields'
 
 // connected drives the disabled state, not an editable/read-only split: the
 // textarea itself always stays editable (see below) even while the socket
@@ -50,6 +51,9 @@ function MessageComposer({ connected, onSend }) {
       <label htmlFor="message-draft" className="text-sm text-zinc-700">
         Message
       </label>
+      {/* Not FormField: the textarea shares this flex row with Send under
+          one label, so the wrapper's own label+control stacking doesn't
+          fit — don't "finish the job" by moving this onto it. */}
       <div className="flex gap-2">
         <textarea
           id="message-draft"
@@ -62,7 +66,7 @@ function MessageComposer({ connected, onSend }) {
           // disabling a focused field drops its focus, so a reconnect blip
           // would eat a half-typed message. Only Send below is disabled —
           // that alone keeps a blank or unsendable frame off the wire.
-          className="flex-1 resize-none rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          className={[FIELD_CONTROL_CLASS, 'flex-1 resize-none'].filter(Boolean).join(' ')}
         />
         <PrimaryButton type="submit" disabled={!canSend}>
           Send

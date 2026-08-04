@@ -1,6 +1,14 @@
 import { useRef, useState } from 'react'
-import { CONDITION_OPTIONS, PRINTING_OPTIONS, isPriceRangeCrossed, readPrice } from '../lib/listings'
+import {
+  CONDITION_OPTIONS,
+  PRINTING_OPTIONS,
+  PRICE_FORMAT_HINT,
+  isPriceRangeCrossed,
+  readPrice,
+} from '../lib/listings'
 import { hasAnyFilter } from '../helpers/browse/searchParams'
+import { FIELD_CONTROL_CLASS } from '../lib/fields'
+import FormField from './FormField'
 import SecondaryButton from './SecondaryButton'
 import PrimaryButton from './PrimaryButton'
 
@@ -25,10 +33,7 @@ function TextFilterField({
   className = '',
 }) {
   return (
-    <div className={['flex flex-col gap-1', className].filter(Boolean).join(' ')}>
-      <label htmlFor={id} className="text-sm text-zinc-700">
-        {label}
-      </label>
+    <FormField id={id} label={label} className={className}>
       <input
         ref={ref}
         type={type}
@@ -41,9 +46,9 @@ function TextFilterField({
         placeholder={placeholder}
         inputMode={inputMode}
         aria-describedby={ariaDescribedBy}
-        className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className={FIELD_CONTROL_CLASS}
       />
-    </div>
+    </FormField>
   )
 }
 
@@ -52,16 +57,13 @@ function TextFilterField({
 // CONDITION_OPTIONS / PRINTING_OPTIONS arrays from src/lib/listings.js.
 function SelectFilterField({ id, name, label, anyLabel, options, value, onChange }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm text-zinc-700">
-        {label}
-      </label>
+    <FormField id={id} label={label}>
       <select
         id={id}
         name={name}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className={FIELD_CONTROL_CLASS}
       >
         <option value="">{anyLabel}</option>
         {options.map((option) => (
@@ -70,7 +72,7 @@ function SelectFilterField({ id, name, label, anyLabel, options, value, onChange
           </option>
         ))}
       </select>
-    </div>
+    </FormField>
   )
 }
 
@@ -183,7 +185,7 @@ function FilterBar({
   const draftMaxPrice = readPrice(draft.maxPrice)
   const isDraftPriceCrossed = isPriceRangeCrossed(draftMinPrice, draftMaxPrice)
   const priceHintMessage = priceFormatBlocked
-    ? 'Enter a plain amount, like 12.50.'
+    ? PRICE_FORMAT_HINT
     : isDraftPriceCrossed
       ? 'Min price cannot be higher than max price'
       : null
@@ -281,18 +283,17 @@ function FilterBar({
 
       {/* Sort orders the set rather than narrowing it, and has no draft to
           compose with — it commits on change and stays outside the form.
-          The flex wrapper is what keeps the control sized to its own label
-          and select instead of stretching across the row. */}
+          FIELD_CONTROL_CLASS's w-full is present but inert here: this flex
+          row gives the select no flex-grow, so 100% resolves against its
+          own fit-content size. Adding flex-1 or items-stretch to the row
+          below would make it start stretching. */}
       <div className="flex">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="sort" className="text-sm text-zinc-700">
-            Sort by
-          </label>
+        <FormField id="sort" label="Sort by">
           <select
             id="sort"
             value={sort}
             onChange={onSortChange}
-            className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className={FIELD_CONTROL_CLASS}
           >
             {sortOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -300,7 +301,7 @@ function FilterBar({
               </option>
             ))}
           </select>
-        </div>
+        </FormField>
       </div>
     </div>
   )

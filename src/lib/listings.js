@@ -65,6 +65,11 @@ export function readPrice(raw) {
   return s
 }
 
+// States in words exactly what readPrice's regex accepts. Keep the two in
+// sync — loosening one without the other produces a hint that lies about
+// what the frontend will actually parse.
+export const PRICE_FORMAT_HINT = 'Enter a plain amount, like 12.50.'
+
 // Takes already-clamped values (never calls readPrice itself), so the same
 // comparison works whether the caller is keyed on a draft or on committed
 // URL state.
