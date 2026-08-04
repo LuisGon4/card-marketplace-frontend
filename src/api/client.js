@@ -72,9 +72,15 @@ export function apiGet(path, { signal } = {}) {
   return request('GET', path, { signal })
 }
 
-// Write helpers below are unexercised this cycle — the homepage makes no
-// mutations. TODO(Luis): review before the first mutation ships (create/edit
-// listing, image upload, conversations, etc.).
+// apiPost is now exercised by the conversation-start flow (POST
+// /api/conversations). apiPatch and apiDelete are still unexercised —
+// TODO(Luis): review before their first mutation ships (edit/delete/
+// reactivate listing, image upload).
+//
+// Open item for review: when the XSRF-TOKEN cookie is absent, `request`
+// above omits the header and sends the write anyway, which 403s in prod
+// with nothing indicating a missing token caused it. GET /api/csrf exists
+// to prime the cookie and is called from nowhere.
 export function apiPost(path, body, { signal } = {}) {
   return request('POST', path, { signal, body })
 }

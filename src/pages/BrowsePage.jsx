@@ -4,6 +4,7 @@ import { useFetch } from '../hooks/useFetch'
 import ListingCard from '../components/ListingCard'
 import FilterBar from '../components/FilterBar'
 import SecondaryButton from '../components/SecondaryButton'
+import PageHeading from '../components/PageHeading'
 import ErrorNotice from '../components/ErrorNotice'
 import EmptyState from '../components/EmptyState'
 import Pager from '../components/Pager'
@@ -126,12 +127,7 @@ function BrowsePage() {
 
   return (
     <div className="space-y-6">
-      {/* tabIndex={-1} is not a tab stop; it exists so focusPageHeading can
-          land here. Removing it silently reintroduces the focus-to-<body>
-          bug. */}
-      <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold text-zinc-900">
-        Browse listings
-      </h1>
+      <PageHeading ref={headingRef}>Browse listings</PageHeading>
 
       {/* Filter bar extracted to its own component: it owns the draft
           object, the five-key sync, and Apply/Clear all; this page owns
