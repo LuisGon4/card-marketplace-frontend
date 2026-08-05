@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import AppLayout from './components/AppLayout'
 import BrowsePage from './pages/BrowsePage'
 import CreateListingPage from './pages/CreateListingPage'
+import ListingImagesPage from './pages/ListingImagesPage'
 import ListingDetailPage from './pages/ListingDetailPage'
 import ConversationsPage from './pages/ConversationsPage'
 import ConversationThreadPage from './pages/ConversationThreadPage'
@@ -25,6 +26,10 @@ function App() {
         <Route
           path="/listings/new"
           element={<CreateListingPage authStatus={authStatus} user={user} />}
+        />
+        <Route
+          path="/listings/:id/images"
+          element={<ListingImagesPage authStatus={authStatus} user={user} />}
         />
         <Route
           path="/listings/:id"

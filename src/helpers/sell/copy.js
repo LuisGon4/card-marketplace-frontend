@@ -96,3 +96,16 @@ export function marketPriceHint(marketPrice) {
 export const marketPriceUnavailableHint = 'No market price available.'
 
 export const checkValuationAgainLabel = 'Check again'
+
+export const imagesPageHeading = 'Add photos'
+
+export const loadingListingText = 'Loading listing…'
+
+export const emptyPhotosCopy = {
+  heading: 'No photos yet',
+  body: 'This listing has no photos.',
+}
+
+export const nonOwnerUploadCopy = 'Only the seller can add photos to this listing.'
+
+export const doneViewListingLabel = 'Done — view listing'
