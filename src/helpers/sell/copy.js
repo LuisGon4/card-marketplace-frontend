@@ -2,7 +2,7 @@
 // file is the single source of truth for each case (CLAUDE.md). The
 // valuation and upload strings arrive with the steps that render them.
 
-import { PRICE_FORMAT_HINT } from '../../lib/listings'
+import { PRICE_FORMAT_HINT, formatPrice } from '../../lib/listings'
 
 export const pageHeading = 'Sell a card'
 
@@ -85,3 +85,14 @@ const SUBMIT_BLOCK_MESSAGES = {
 export function submitBlockMessage(field) {
   return SUBMIT_BLOCK_MESSAGES[field] ?? null
 }
+
+export function marketPriceHint(marketPrice) {
+  return `Market price: ${formatPrice(marketPrice)}`
+}
+
+// The wire cannot distinguish "not fetched yet" from "genuinely unpriced" —
+// both are 200 with marketPrice: null — so this must never claim a card
+// has no price, only that none is available right now.
+export const marketPriceUnavailableHint = 'No market price available.'
+
+export const checkValuationAgainLabel = 'Check again'

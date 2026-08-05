@@ -6,6 +6,7 @@ import PageHeading from '../components/PageHeading'
 import EmptyState from '../components/EmptyState'
 import ErrorNotice from '../components/ErrorNotice'
 import PrimaryButton from '../components/PrimaryButton'
+import SecondaryButton from '../components/SecondaryButton'
 import FormField from '../components/FormField'
 import { FIELD_CONTROL_CLASS, hintIdFor } from '../lib/fields'
 import { CONDITION_OPTIONS, PRINTING_OPTIONS } from '../lib/listings'
@@ -32,6 +33,9 @@ import {
   descriptionHint,
   submitBlockMessage,
   creatingListingText,
+  marketPriceHint,
+  marketPriceUnavailableHint,
+  checkValuationAgainLabel,
 } from '../helpers/sell/copy'
 
 // One row in the card-search results list. Local to this page, following
@@ -65,7 +69,7 @@ function CardResult({ card, isSelected, onSelect }) {
 // SelectFilterField's empty option means "filter off, a legal final
 // state" where this form's empty option means "not chosen yet, invalid
 // until changed."
-function TextField({ id, label, value, onChange, ref, type = 'text', inputMode }) {
+function TextField({ id, label, value, onChange, ref, type = 'text', inputMode, describedBy }) {
   return (
     <FormField id={id} label={label}>
       <input
@@ -75,6 +79,7 @@ function TextField({ id, label, value, onChange, ref, type = 'text', inputMode }
         value={value}
         onChange={(event) => onChange(event.target.value)}
         inputMode={inputMode}
+        aria-describedby={describedBy}
         className={FIELD_CONTROL_CLASS}
       />
     </FormField>
@@ -116,8 +121,8 @@ function TextAreaField({ id, label, value, onChange, hint }) {
   )
 }
 
-// Ships the card picker, the details form, the submit block, and
-// POST /api/listings. The valuation hint arrives in a later step.
+// Ships the card picker, the details form, the submit block,
+// POST /api/listings, and the valuation hint beside the asking price.
 function CreateListingPage({ authStatus }) {
   const isSignedIn = authStatus === 'signedIn'
   const navigate = useNavigate()
@@ -166,6 +171,27 @@ function CreateListingPage({ authStatus }) {
   const [postError, setPostError] = useState(null)
   // Focus target when submitBlock names 'askingPrice'.
   const askingPriceRef = useRef(null)
+
+  const askingPriceHintId = hintIdFor('askingPrice')
+  const valuationGated = Boolean(selectedCard && draft.condition && draft.printing)
+  const valuationPath = valuationGated
+    ? `/api/cards/${selectedCard.id}/valuation?${new URLSearchParams({
+        condition: draft.condition,
+        printing: draft.printing,
+      }).toString()}`
+    : null
+  // useFetch nulls `data` at the start of every request — wanted here, not
+  // worked around: a price fetched for one condition/printing is wrong the
+  // instant either changes, so it must vanish immediately rather than be
+  // mirrored into local state.
+  const {
+    data: valuationData,
+    loading: valuationLoading,
+    error: valuationError,
+    refetch: refetchValuation,
+  } = useFetch(valuationPath)
+  const valuationSettled = valuationGated && !valuationLoading
+  const valuationIsNull = Boolean(valuationData) && valuationData.marketPrice === null
 
   // Tracks whether this component is still mounted across the POST's
   // await — the same gap ListingDetailPage's handleMessageSeller guards.
@@ -335,6 +361,7 @@ function CreateListingPage({ authStatus }) {
                 ref={askingPriceRef}
                 type="text"
                 inputMode="decimal"
+                describedBy={valuationSettled ? askingPriceHintId : undefined}
               />
               <TextField
                 id="location"
@@ -343,6 +370,31 @@ function CreateListingPage({ authStatus }) {
                 onChange={(value) => updateDraft('location', value)}
               />
             </div>
+
+            {/* Deliberately outside the role="status" live region: this
+                changes on every condition/printing toggle, and announcing it
+                would interrupt the form for advisory information. Wired by
+                aria-describedby on the asking-price input instead. */}
+            {valuationSettled && (
+              <div className="flex flex-wrap items-center gap-2">
+                <p id={askingPriceHintId} className="text-sm text-zinc-700">
+                  {valuationError
+                    ? // A failed valuation is advisory, not a blocked form:
+                      // the server's text verbatim in a muted line, never
+                      // ErrorNotice — that role="alert" would announce over
+                      // the form and imply create is broken when it isn't.
+                      valuationError.message
+                    : valuationIsNull
+                      ? marketPriceUnavailableHint
+                      : valuationData && marketPriceHint(valuationData.marketPrice)}
+                </p>
+                {valuationIsNull && (
+                  <SecondaryButton onClick={refetchValuation}>
+                    {checkValuationAgainLabel}
+                  </SecondaryButton>
+                )}
+              </div>
+            )}
 
             <TextAreaField
               id="description"
