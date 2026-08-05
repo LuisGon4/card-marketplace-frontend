@@ -59,7 +59,8 @@ function Header({ authStatus, user }) {
           {/* Gated on signedIn so it appears in the same tick the auth slot
               resolves, rather than flashing for a signed-out visitor. */}
           {authStatus === 'signedIn' && (
-            <nav>
+            <nav className="flex items-center gap-6">
+              <TextLink to="/listings/new">Sell a card</TextLink>
               <TextLink to="/conversations">Conversations</TextLink>
             </nav>
           )}
