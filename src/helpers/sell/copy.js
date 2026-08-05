@@ -109,3 +109,39 @@ export const emptyPhotosCopy = {
 export const nonOwnerUploadCopy = 'Only the seller can add photos to this listing.'
 
 export const doneViewListingLabel = 'Done — view listing'
+
+export const addPhotoPanelHeading = 'Add a photo'
+
+export const photoFieldLabel = 'Photo'
+
+export const photoFieldHint = 'JPEG only. One photo at a time.'
+
+export const uploadButtonLabel = 'Upload photo'
+
+export const chooseFileFirstHint = 'Choose a photo before uploading.'
+
+const UPLOAD_STAGE_TEXT = {
+  presigning: 'Preparing upload…',
+  uploading: 'Uploading photo…',
+  confirming: 'Saving photo to the listing…',
+}
+
+export function uploadStageText(stage) {
+  return UPLOAD_STAGE_TEXT[stage] ?? null
+}
+
+// Keyed by the same three stage names runUpload uses for failedStage, so
+// the error line can never name a leg the stage machine doesn't have.
+const UPLOAD_ERROR_PREFIX = {
+  presigning: "Couldn't start the upload",
+  uploading: "Couldn't upload the photo",
+  confirming: "Couldn't save the photo to the listing",
+}
+
+// The server's text is preserved verbatim as a substring, never
+// paraphrased — which leg failed is the one thing that distinguishes "S3
+// rejected the file" from "the listing rejected the upload" for a user
+// staring at the same red box.
+export function uploadErrorLine(stage, message) {
+  return `${UPLOAD_ERROR_PREFIX[stage]}: ${message}`
+}

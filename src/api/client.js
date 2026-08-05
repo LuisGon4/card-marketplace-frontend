@@ -1,10 +1,9 @@
 // This module implements the API contract in BACKEND.md §2-3 — see
 // CLAUDE.md "API access" for the one-module-per-host rule. It is the only
-// module in the app that calls fetch for that contract. src/api/s3.js
-// (arriving in the create-listing cycle, not yet in this tree) is the one
-// sanctioned exception: the presigned S3 PUT is not an API call — different
-// host, and the signature is the credential, so it must send neither
-// cookies nor CSRF. Any new API call still belongs in this file.
+// module in the app that calls fetch for that contract. src/api/s3.js is
+// the one sanctioned exception: the presigned S3 PUT is not an API call —
+// different host, and the signature is the credential, so it must send
+// neither cookies nor CSRF. Any new API call still belongs in this file.
 
 // Read once at module load. If this is missing, every request would silently
 // resolve against the Vite dev origin and 404 in a confusing way — fail loud
@@ -92,8 +91,8 @@ export function apiGet(path, { signal } = {}) {
 // invent a failure mode the contract does not describe. Not an open
 // question; a recorded decision.
 //
-// src/api/s3.js (arriving in the create-listing cycle) is the one sanctioned
-// fetch outside this module — see this file's header comment.
+// src/api/s3.js is the one sanctioned fetch outside this module — see this
+// file's header comment.
 export function apiPost(path, body, { signal } = {}) {
   return request('POST', path, { signal, body })
 }
