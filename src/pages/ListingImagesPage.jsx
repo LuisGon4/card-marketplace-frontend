@@ -11,6 +11,7 @@ import EmptyState from '../components/EmptyState'
 import PrimaryButton from '../components/PrimaryButton'
 import FormField from '../components/FormField'
 import { FIELD_CONTROL_CLASS, hintIdFor } from '../lib/fields'
+import { UPLOAD_CONTENT_TYPE } from '../lib/images'
 import {
   imagesPageHeading,
   loadingListingText,
@@ -270,7 +271,7 @@ function ListingImagesPage({ authStatus, user }) {
                   ref={fileInputRef}
                   id="photo"
                   type="file"
-                  accept="image/jpeg"
+                  accept={UPLOAD_CONTENT_TYPE}
                   aria-describedby={hintIdFor('photo')}
                   onChange={() => {
                     // A confirm-stage failure keeps failedStage 'confirming'

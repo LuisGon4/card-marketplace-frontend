@@ -8,14 +8,14 @@
 // 1. Absolute URL — the presigned uploadUrl the server returns, never
 //    BASE_URL + path.
 // 2. Raw File body — the exact bytes S3 signed, never JSON.stringify.
-// 3. Content-Type: image/jpeg, hardcoded from BACKEND.md's contract, never
-//    read from file.type. The presigned URL signs this header, and a
-//    mismatch is a hard 403 SignatureDoesNotMatch whose body says nothing
-//    about why. fetch sets Content-Type from a File's own .type when the
-//    caller omits it, so leaving this unset is not an option — a user who
-//    defeats accept="image/jpeg" and picks a PNG would otherwise send
-//    image/png and break the signature (accepted risk, see
-//    ListingImagesPage.jsx's runUpload).
+// 3. Content-Type: UPLOAD_CONTENT_TYPE, hardcoded from BACKEND.md's
+//    contract, never read from file.type. The presigned URL signs this
+//    header, and a mismatch is a hard 403 SignatureDoesNotMatch whose body
+//    says nothing about why. fetch sets Content-Type from a File's own
+//    .type when the caller omits it, so leaving this unset is not an
+//    option — a user who defeats accept={UPLOAD_CONTENT_TYPE} and picks a
+//    PNG would otherwise send image/png and break the signature (accepted
+//    risk, see ListingImagesPage.jsx's runUpload).
 // 4. credentials: 'omit', explicitly, and no X-XSRF-TOKEN. The signature is
 //    the only credential this request carries; sending either the session
 //    cookie or a CSRF header changes the request S3 signed for and produces
@@ -26,6 +26,7 @@
 // Never fold this into client.js's request().
 
 import { ApiError } from './client'
+import { UPLOAD_CONTENT_TYPE } from '../lib/images'
 
 /**
  * PUTs file's raw bytes to a presigned S3 URL. Resolves with nothing on
@@ -38,7 +39,7 @@ export async function putPresignedFile(uploadUrl, file, { signal } = {}) {
   const response = await fetch(uploadUrl, {
     method: 'PUT',
     credentials: 'omit',
-    headers: { 'Content-Type': 'image/jpeg' },
+    headers: { 'Content-Type': UPLOAD_CONTENT_TYPE },
     body: file,
     signal,
   })
