@@ -48,7 +48,7 @@ function AuthSlot({ authStatus, user }) {
 function Header({ authStatus, user }) {
   return (
     <header className="border-b border-zinc-200 bg-zinc-50">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-4">
         <div className="flex items-center gap-6">
           {/* Not wrapped in its own <nav>: the <header> is already a banner
               landmark, and a second navigation landmark would be
