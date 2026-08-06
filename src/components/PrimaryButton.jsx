@@ -1,10 +1,13 @@
 // The filled blue action button. Unlike SecondaryButton, `type` is a real
 // prop with a `button` default: this component's callers split
 // two-submit / one-button, so hardcoding `type="button"` would break the
-// submit callers.
-function PrimaryButton({ type = 'button', disabled, onClick, children }) {
+// submit callers. `ref` is a plain prop (React 19 — no forwardRef needed),
+// forwarded straight to the DOM node so a caller can move focus back to
+// this button after it re-enables (PageHeading does the same for <h1>).
+function PrimaryButton({ ref, type = 'button', disabled, onClick, children }) {
   return (
     <button
+      ref={ref}
       type={type}
       disabled={disabled}
       onClick={onClick}

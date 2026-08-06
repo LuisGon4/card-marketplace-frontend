@@ -38,10 +38,39 @@ function ListingImagesPage({ authStatus, user }) {
   const path = `/api/listings/${encodeURIComponent(id)}`
   const { data, loading, error, refetch } = useFetch(path)
 
-  const loaded = !loading && !error && data !== null
+  // Merged into local state rather than rendered from useFetch's `data`
+  // directly: useFetch nulls `data` at the start of every request,
+  // including the post-confirm refetch below, and rendering that null
+  // would unmount this whole loaded block mid-upload — destroying the
+  // Upload button (and its restored focus) a second time even after the
+  // fix below re-enables it. Unlike ConversationThreadPage's per-id merge,
+  // this page's :id never changes without a full remount — its only entry
+  // point is a `navigate` from a different route (CreateListingPage), never
+  // a same-page link to a different listing's images — so there is no
+  // stale-id frame to guard against synchronously during render, and a
+  // plain effect (not the render-time reset ConversationThreadPage needs
+  // for its :id) is enough.
+  const [listing, setListing] = useState(null)
+  const [listingLoadedOnce, setListingLoadedOnce] = useState(false)
+
+  useEffect(() => {
+    if (data === null) return
+    // Syncing local state to a prop-like input (the latest fetched
+    // listing), not an accidental render cascade — see useFetch.js and
+    // ConversationThreadPage's identical merge effect for the same case.
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setListing(data)
+    setListingLoadedOnce(true)
+  }, [data])
+
+  // listingLoadedOnce, not the hook's own `loading`: once the listing has
+  // loaded once, a transient refetch (loading flips true again, data flips
+  // null) must not un-load the page — same reasoning as
+  // ConversationThreadPage's messagesLoaded.
+  const loaded = listingLoadedOnce && !error
   // Exact id comparison, never a username match — the same rule
   // ListingDetailPage's own-listing check uses.
-  const isOwner = authStatus === 'signedIn' && data?.sellerId === user?.id
+  const isOwner = authStatus === 'signedIn' && listing?.sellerId === user?.id
 
   function focusPageHeading() {
     headingRef.current?.focus()
@@ -62,6 +91,22 @@ function ListingImagesPage({ authStatus, user }) {
   // One AbortController per attempt, so navigating away mid-upload cancels
   // the in-flight request instead of leaving it running unseen.
   const uploadControllerRef = useRef(null)
+  const uploadButtonRef = useRef(null)
+  // Set to true right before every settle-to-null of uploadStage (success
+  // or failure), never on the empty-file early return or an aborted
+  // attempt. The effect below reads it once uploadStage actually reaches
+  // null in a committed render — the button is disabled while uploadStage
+  // is non-null, and a disabled element can't hold focus, so this can't run
+  // synchronously inside runUpload; it has to wait for the re-render that
+  // clears `disabled`.
+  const restoreUploadFocusRef = useRef(false)
+
+  useEffect(() => {
+    if (uploadStage === null && restoreUploadFocusRef.current) {
+      restoreUploadFocusRef.current = false
+      uploadButtonRef.current?.focus()
+    }
+  }, [uploadStage])
 
   useEffect(() => {
     return () => {
@@ -115,6 +160,7 @@ function ListingImagesPage({ authStatus, user }) {
         // before touching state, or an unmount after navigating away would
         // still write a stale error.
         if (controller.signal.aborted) return
+        restoreUploadFocusRef.current = true
         setUploadStage(null)
         setFailedStage('presigning')
         setUploadError(err)
@@ -130,6 +176,7 @@ function ListingImagesPage({ authStatus, user }) {
         await putPresignedFile(presign.uploadUrl, file, { signal: controller.signal })
       } catch (err) {
         if (controller.signal.aborted) return
+        restoreUploadFocusRef.current = true
         setUploadStage(null)
         setFailedStage('uploading')
         setUploadError(err)
@@ -147,6 +194,7 @@ function ListingImagesPage({ authStatus, user }) {
       )
     } catch (err) {
       if (controller.signal.aborted) return
+      restoreUploadFocusRef.current = true
       setUploadStage(null)
       setFailedStage('confirming')
       setUploadError(err)
@@ -154,6 +202,7 @@ function ListingImagesPage({ authStatus, user }) {
     }
     if (controller.signal.aborted) return
 
+    restoreUploadFocusRef.current = true
     setUploadStage(null)
     setFailedStage(null)
     setUploadError(null)
@@ -172,11 +221,17 @@ function ListingImagesPage({ authStatus, user }) {
 
       {loaded && (
         <p className="text-sm text-zinc-700">
-          <TextLink to={`/listings/${id}`}>{data.cardName}</TextLink>
+          <TextLink to={`/listings/${id}`}>{listing.cardName}</TextLink>
         </p>
       )}
 
-      {loading && <p className="text-sm text-zinc-600">{loadingListingText}</p>}
+      {/* Gated on listingLoadedOnce, not the hook's raw `loading`: once the
+          listing has loaded once, a post-upload refetch flips `loading`
+          true again without this text reappearing over an already-rendered
+          gallery. */}
+      {!listingLoadedOnce && loading && (
+        <p className="text-sm text-zinc-600">{loadingListingText}</p>
+      )}
 
       {/* The listing fetch's own loading state renders above rather than
           sharing this region — this region announces only the three upload
@@ -197,8 +252,8 @@ function ListingImagesPage({ authStatus, user }) {
 
       {loaded && (
         <>
-          {data.imageUrls.length > 0 ? (
-            <ImageGallery imageUrls={data.imageUrls} cardName={data.cardName} />
+          {listing.imageUrls.length > 0 ? (
+            <ImageGallery imageUrls={listing.imageUrls} cardName={listing.cardName} />
           ) : (
             <EmptyState heading={emptyPhotosCopy.heading} body={emptyPhotosCopy.body} />
           )}
@@ -236,7 +291,12 @@ function ListingImagesPage({ authStatus, user }) {
                 />
               </FormField>
 
-              <PrimaryButton type="button" disabled={uploadStage !== null} onClick={runUpload}>
+              <PrimaryButton
+                ref={uploadButtonRef}
+                type="button"
+                disabled={uploadStage !== null}
+                onClick={runUpload}
+              >
                 {uploadButtonLabel}
               </PrimaryButton>
 
