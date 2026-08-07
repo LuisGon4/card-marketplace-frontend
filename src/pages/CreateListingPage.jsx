@@ -6,9 +6,9 @@ import PageHeading from '../components/PageHeading'
 import EmptyState from '../components/EmptyState'
 import ErrorNotice from '../components/ErrorNotice'
 import PrimaryButton from '../components/PrimaryButton'
-import SecondaryButton from '../components/SecondaryButton'
 import FormField from '../components/FormField'
 import CardPicker from '../components/CardPicker'
+import ValuationHint from '../components/ValuationHint'
 import { FIELD_CONTROL_CLASS, hintIdFor } from '../lib/fields'
 import { CONDITION_OPTIONS, PRINTING_OPTIONS } from '../lib/listings'
 import { EMPTY_DRAFT, submitBlock, buildCreateRequest } from '../helpers/sell/draft'
@@ -28,9 +28,6 @@ import {
   descriptionHint,
   submitBlockMessage,
   creatingListingText,
-  marketPriceHint,
-  marketPriceUnavailableHint,
-  checkValuationAgainLabel,
 } from '../helpers/sell/copy'
 
 // Three field shapes local to this form, deliberately not FilterBar's
@@ -295,24 +292,13 @@ function CreateListingPage({ authStatus }) {
                 would interrupt the form for advisory information. Wired by
                 aria-describedby on the asking-price input instead. */}
             {valuationSettled && (
-              <div className="flex flex-wrap items-center gap-2">
-                <p id={askingPriceHintId} className="text-sm text-zinc-700">
-                  {valuationError
-                    ? // A failed valuation is advisory, not a blocked form:
-                      // the server's text verbatim in a muted line, never
-                      // ErrorNotice — that role="alert" would announce over
-                      // the form and imply create is broken when it isn't.
-                      valuationError.message
-                    : valuationIsNull
-                      ? marketPriceUnavailableHint
-                      : valuationData && marketPriceHint(valuationData.marketPrice)}
-                </p>
-                {valuationIsNull && (
-                  <SecondaryButton onClick={refetchValuation}>
-                    {checkValuationAgainLabel}
-                  </SecondaryButton>
-                )}
-              </div>
+              <ValuationHint
+                hintId={askingPriceHintId}
+                error={valuationError}
+                isNull={valuationIsNull}
+                marketPrice={valuationData?.marketPrice}
+                onCheckAgain={refetchValuation}
+              />
             )}
 
             <TextAreaField
