@@ -8,21 +8,16 @@ import ErrorNotice from '../components/ErrorNotice'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
 import FormField from '../components/FormField'
+import CardPicker from '../components/CardPicker'
 import { FIELD_CONTROL_CLASS, hintIdFor } from '../lib/fields'
 import { CONDITION_OPTIONS, PRINTING_OPTIONS } from '../lib/listings'
 import { EMPTY_DRAFT, submitBlock, buildCreateRequest } from '../helpers/sell/draft'
 import {
   pageHeading,
-  choosePanelHeading,
   describePanelHeading,
   signedOutSellCopy,
-  cardSearchLabel,
-  cardSearchIdleHint,
   cardSearchLoadingText,
   cardResultCountText,
-  cardSearchEmptyStateCopy,
-  cardResultDetail,
-  selectedCardLabel,
   conditionFieldLabel,
   printingFieldLabel,
   conditionEmptyOptionLabel,
@@ -37,29 +32,6 @@ import {
   marketPriceUnavailableHint,
   checkValuationAgainLabel,
 } from '../helpers/sell/copy'
-
-// One row in the card-search results list. Local to this page, following
-// the Fact / ConversationRow precedent — not exported, not extracted.
-function CardResult({ card, isSelected, onSelect }) {
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onSelect(card)}
-        aria-pressed={isSelected}
-        // Two-signal selection (WCAG 1.4.1): aria-pressed plus this border.
-        // Both states are border-2, never border vs border-2, so selecting a
-        // result never shifts layout by a pixel.
-        className={`w-full rounded border-2 p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-          isSelected ? 'border-blue-700' : 'border-zinc-200'
-        }`}
-      >
-        <p className="text-sm font-medium text-zinc-900">{card.cardName}</p>
-        <p className="text-sm text-zinc-600">{cardResultDetail(card)}</p>
-      </button>
-    </li>
-  )
-}
 
 // Three field shapes local to this form, deliberately not FilterBar's
 // TextFilterField/SelectFilterField (Fact / CardResult precedent — local
@@ -127,7 +99,6 @@ function CreateListingPage({ authStatus }) {
   const isSignedIn = authStatus === 'signedIn'
   const navigate = useNavigate()
 
-  const [cardSearchDraft, setCardSearchDraft] = useState('')
   // Separate from the draft, exactly as FilterBar separates draft from
   // committed. '' is the idle state, distinct from a search that ran and
   // found nothing.
@@ -155,15 +126,6 @@ function CreateListingPage({ authStatus }) {
   // true before any search has run, and without this guard the idle state
   // would render as a zero-result EmptyState instead of the idle hint.
   const cardResultsLoaded = hasSearchedCards && !cardSearchLoading && !cardSearchError
-  const cardEmptyState =
-    cardResultsLoaded && cardResults.length === 0
-      ? cardSearchEmptyStateCopy(committedCardQuery)
-      : null
-
-  function handleCardSearchSubmit(event) {
-    event.preventDefault()
-    setCommittedCardQuery(cardSearchDraft.trim())
-  }
 
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [blockedField, setBlockedField] = useState(null)
@@ -271,60 +233,17 @@ function CreateListingPage({ authStatus }) {
 
       {isSignedIn && (
         <>
-          <section className="space-y-4 rounded border border-zinc-200 p-4">
-            <h2 className="text-base font-medium text-zinc-900">{choosePanelHeading}</h2>
-
-            {/* A sibling of the details form, never nested — HTML forbids
-                nested <form>, and this is what makes Enter do the right
-                thing in each form because the platform enforces it, not a
-                keydown guard. */}
-            <form
-              role="search"
-              onSubmit={handleCardSearchSubmit}
-              className="flex items-end gap-2"
-            >
-              <FormField id="cardSearch" label={cardSearchLabel} className="flex-1">
-                <input
-                  ref={cardSearchRef}
-                  id="cardSearch"
-                  type="search"
-                  value={cardSearchDraft}
-                  onChange={(event) => setCardSearchDraft(event.target.value)}
-                  className={FIELD_CONTROL_CLASS}
-                />
-              </FormField>
-              <PrimaryButton type="submit">Search</PrimaryButton>
-            </form>
-
-            {!hasSearchedCards && (
-              <p className="text-sm text-zinc-700">{cardSearchIdleHint}</p>
-            )}
-
-            {cardSearchError && (
-              <ErrorNotice message={cardSearchError.message} onRetry={refetchCardSearch} />
-            )}
-
-            {cardEmptyState && (
-              <EmptyState heading={cardEmptyState.heading} body={cardEmptyState.body} />
-            )}
-
-            {cardResultsLoaded && cardResults.length > 0 && (
-              <ul className="space-y-2">
-                {cardResults.map((card) => (
-                  <CardResult
-                    key={card.id}
-                    card={card}
-                    isSelected={selectedCard?.id === card.id}
-                    onSelect={setSelectedCard}
-                  />
-                ))}
-              </ul>
-            )}
-
-            {selectedCard && (
-              <p className="text-sm text-zinc-700">{selectedCardLabel(selectedCard.cardName)}</p>
-            )}
-          </section>
+          <CardPicker
+            committedQuery={committedCardQuery}
+            loaded={cardResultsLoaded}
+            results={cardResults}
+            error={cardSearchError}
+            onSearch={setCommittedCardQuery}
+            onRetry={refetchCardSearch}
+            selectedCard={selectedCard}
+            onSelect={setSelectedCard}
+            searchRef={cardSearchRef}
+          />
 
           <form
             onSubmit={handleCreateSubmit}
