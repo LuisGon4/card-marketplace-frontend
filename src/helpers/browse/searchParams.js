@@ -117,3 +117,23 @@ export function withFilters(params, next) {
   built.set('page', '0')
   return built
 }
+
+// Only an unparseable price blocks Apply — a crossed range (min > max)
+// is a legal, well-formed query with a correct 0-row answer, so it is
+// sent verbatim rather than refused. The frontend blocks only what it
+// cannot construct, never what it disagrees with.
+const PRICE_SUBMIT_BLOCK_ORDER = [
+  {
+    field: 'minPrice',
+    isBlocked: (draft) => draft.minPrice.trim() !== '' && readPrice(draft.minPrice) === '',
+  },
+  {
+    field: 'maxPrice',
+    isBlocked: (draft) => draft.maxPrice.trim() !== '' && readPrice(draft.maxPrice) === '',
+  },
+]
+
+export function priceSubmitBlock(draft) {
+  const failingRow = PRICE_SUBMIT_BLOCK_ORDER.find((row) => row.isBlocked(draft))
+  return failingRow ? failingRow.field : null
+}

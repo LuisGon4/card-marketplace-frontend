@@ -6,7 +6,8 @@ import {
   isPriceRangeCrossed,
   readPrice,
 } from '../lib/listings'
-import { hasAnyFilter } from '../helpers/browse/searchParams'
+import { hasAnyFilter, priceSubmitBlock } from '../helpers/browse/searchParams'
+import { CROSSED_PRICE_RANGE_HINT } from '../helpers/browse/copy'
 import { FIELD_CONTROL_CLASS } from '../lib/fields'
 import FormField from './FormField'
 import SecondaryButton from './SecondaryButton'
@@ -141,31 +142,23 @@ function FilterBar({
 
   function handleApply(event) {
     event.preventDefault()
-    // Edge-trim on write, the same rule readTrimmed applies on read.
-    const normalizedMinPrice = readPrice(draft.minPrice)
-    const normalizedMaxPrice = readPrice(draft.maxPrice)
-    // Only an unparseable price blocks Apply — a crossed range (min > max)
-    // is a legal, well-formed query with a correct 0-row answer, so it is
-    // sent verbatim rather than refused. The frontend blocks only what it
-    // cannot construct, never what it disagrees with.
-    const minPriceInvalid = draft.minPrice.trim() !== '' && normalizedMinPrice === ''
-    const maxPriceInvalid = draft.maxPrice.trim() !== '' && normalizedMaxPrice === ''
-    if (minPriceInvalid || maxPriceInvalid) {
-      setPriceFormatBlocked(true)
-      if (minPriceInvalid) {
+    const blockedField = priceSubmitBlock(draft)
+    setPriceFormatBlocked(blockedField !== null)
+    if (blockedField) {
+      if (blockedField === 'minPrice') {
         minPriceRef.current?.focus()
       } else {
         maxPriceRef.current?.focus()
       }
       return
     }
-    setPriceFormatBlocked(false)
 
+    // Edge-trim on write, the same rule readTrimmed applies on read.
     const normalized = {
       ...draft,
       cardName: draft.cardName.trim(),
-      minPrice: normalizedMinPrice,
-      maxPrice: normalizedMaxPrice,
+      minPrice: readPrice(draft.minPrice),
+      maxPrice: readPrice(draft.maxPrice),
     }
     // Unconditional, not just when something changed: if `committed`
     // doesn't change, the guard above never fires, so this is the only
@@ -187,7 +180,7 @@ function FilterBar({
   const priceHintMessage = priceFormatBlocked
     ? PRICE_FORMAT_HINT
     : isDraftPriceCrossed
-      ? 'Min price cannot be higher than max price'
+      ? CROSSED_PRICE_RANGE_HINT
       : null
 
   // Drives this component's own "Clear all" button — see `hasAnyFilter`'s

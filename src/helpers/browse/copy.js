@@ -1,6 +1,10 @@
 import { formatPrice, isPriceRangeCrossed, printingLabel } from '../../lib/listings'
 import { FILTER_KEYS, hasAnyFilter } from './searchParams'
 
+// Draft-price crossed-range hint — sent as a request, not blocked; see
+// priceSubmitBlock in searchParams.js for what actually blocks Apply.
+export const CROSSED_PRICE_RANGE_HINT = 'Min price cannot be higher than max price'
+
 // Single-value descriptors, keyed by filter and iterated in this
 // declaration order — cardName, condition, printing — so the announced
 // order stays fixed. The price pair is handled separately by
