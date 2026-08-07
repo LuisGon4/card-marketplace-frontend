@@ -17,8 +17,8 @@ export function topicFor(conversationId) {
   return `/topic/conversation/${conversationId}`
 }
 
-// Step 8's first caller; defined now because it's the same vocabulary as the
-// two destinations above. Also ends at the id, same reasoning as topicFor.
+// Same vocabulary as the two destinations above. Also ends at the id, same
+// reasoning as topicFor.
 export function sendDestinationFor(conversationId) {
   return `/app/chat/${conversationId}`
 }

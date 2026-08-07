@@ -33,7 +33,7 @@ export function sortConversations(list) {
   })
 }
 
-// Used by the thread page (Step 5): there is no GET /api/conversations/{id},
+// Used by the thread page: there is no GET /api/conversations/{id},
 // so the thread finds its own entry in the list fetched here.
 export function findConversation(list, id) {
   return list.find((conversation) => conversation.id === id) ?? null

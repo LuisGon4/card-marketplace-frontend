@@ -274,10 +274,10 @@ function CreateListingPage({ authStatus }) {
           <section className="space-y-4 rounded border border-zinc-200 p-4">
             <h2 className="text-base font-medium text-zinc-900">{choosePanelHeading}</h2>
 
-            {/* A sibling of the details form arriving in a later step, never
-                nested — HTML forbids nested <form>, and this is what makes
-                Enter do the right thing in each form because the platform
-                enforces it, not a keydown guard. */}
+            {/* A sibling of the details form, never nested — HTML forbids
+                nested <form>, and this is what makes Enter do the right
+                thing in each form because the platform enforces it, not a
+                keydown guard. */}
             <form
               role="search"
               onSubmit={handleCardSearchSubmit}

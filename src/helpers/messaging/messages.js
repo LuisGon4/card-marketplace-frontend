@@ -11,8 +11,8 @@ export function isOwnMessage(message, currentUserId) {
 // Appends only ids from `incoming` that aren't already in `existing`,
 // preserving `existing`'s order and appending new ones in `incoming`'s
 // order. Never replaces, never re-sorts: history arrives in the server's
-// ascending order and this keeps it that way across refetches, and (from
-// Step 7 on) across live frames appended after it.
+// ascending order and this keeps it that way across refetches, and across
+// live frames appended after it.
 export function mergeById(existing, incoming) {
   const seenIds = new Set(existing.map((message) => message.id))
   const additions = incoming.filter((message) => !seenIds.has(message.id))

@@ -151,7 +151,7 @@ function ConversationThreadPage({ authStatus, user }) {
   const conversationsLoaded = isSignedIn && !conversationsError && conversations !== null
   // historyLoadedOnce, not `history !== null`: useFetch nulls `history` at
   // the start of every request, including the reconnect/first-connect
-  // refetch below (D8). Gating on the raw value would flip this false for
+  // refetch below. Gating on the raw value would flip this false for
   // the duration of that refetch and unmount the composer, revert the
   // heading to its placeholder, and re-show the empty state — all while a
   // transcript is already on screen. Once history has loaded for this id,
