@@ -24,7 +24,7 @@ export const emptyMessagesCopy = {
   body: 'Nothing has been sent in this conversation.',
 }
 
-// D5: both fetches succeeded (200), but the id isn't in the caller's own
+// Both fetches succeeded (200), but the id isn't in the caller's own
 // conversation list. Not an error — a distinct, honest notice.
 export const notInConversationListCopy = {
   heading: "This conversation isn't in your list",

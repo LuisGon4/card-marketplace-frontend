@@ -4,122 +4,18 @@ import { useFetch } from '../hooks/useFetch'
 import { apiPost } from '../api/client'
 import PageHeading from '../components/PageHeading'
 import EmptyState from '../components/EmptyState'
-import ErrorNotice from '../components/ErrorNotice'
-import PrimaryButton from '../components/PrimaryButton'
-import SecondaryButton from '../components/SecondaryButton'
-import FormField from '../components/FormField'
-import { FIELD_CONTROL_CLASS, hintIdFor } from '../lib/fields'
-import { CONDITION_OPTIONS, PRINTING_OPTIONS } from '../lib/listings'
+import CardPicker from '../components/CardPicker'
+import ValuationHint from '../components/ValuationHint'
+import ListingDetailsForm from '../components/ListingDetailsForm'
+import { hintIdFor } from '../lib/fields'
 import { EMPTY_DRAFT, submitBlock, buildCreateRequest } from '../helpers/sell/draft'
 import {
   pageHeading,
-  choosePanelHeading,
-  describePanelHeading,
   signedOutSellCopy,
-  cardSearchLabel,
-  cardSearchIdleHint,
   cardSearchLoadingText,
   cardResultCountText,
-  cardSearchEmptyStateCopy,
-  cardResultDetail,
-  selectedCardLabel,
-  conditionFieldLabel,
-  printingFieldLabel,
-  conditionEmptyOptionLabel,
-  printingEmptyOptionLabel,
-  askingPriceFieldLabel,
-  locationFieldLabel,
-  descriptionFieldLabel,
-  descriptionHint,
-  submitBlockMessage,
   creatingListingText,
-  marketPriceHint,
-  marketPriceUnavailableHint,
-  checkValuationAgainLabel,
 } from '../helpers/sell/copy'
-
-// One row in the card-search results list. Local to this page, following
-// the Fact / ConversationRow precedent — not exported, not extracted.
-function CardResult({ card, isSelected, onSelect }) {
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onSelect(card)}
-        aria-pressed={isSelected}
-        // Two-signal selection (WCAG 1.4.1): aria-pressed plus this border.
-        // Both states are border-2, never border vs border-2, so selecting a
-        // result never shifts layout by a pixel.
-        className={`w-full rounded border-2 p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-          isSelected ? 'border-blue-700' : 'border-zinc-200'
-        }`}
-      >
-        <p className="text-sm font-medium text-zinc-900">{card.cardName}</p>
-        <p className="text-sm text-zinc-600">{cardResultDetail(card)}</p>
-      </button>
-    </li>
-  )
-}
-
-// Three field shapes local to this form, deliberately not FilterBar's
-// TextFilterField/SelectFilterField (Fact / CardResult precedent — local
-// beside its one consumer, not extracted). Same markup, opposite
-// semantics: enterKeyHint="search" and spellCheck={false} are search
-// behaviours that don't belong on a price or location field, and
-// SelectFilterField's empty option means "filter off, a legal final
-// state" where this form's empty option means "not chosen yet, invalid
-// until changed."
-function TextField({ id, label, value, onChange, ref, type = 'text', inputMode, describedBy }) {
-  return (
-    <FormField id={id} label={label}>
-      <input
-        ref={ref}
-        type={type}
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        inputMode={inputMode}
-        aria-describedby={describedBy}
-        className={FIELD_CONTROL_CLASS}
-      />
-    </FormField>
-  )
-}
-
-function SelectField({ id, label, emptyOptionLabel, options, value, onChange }) {
-  return (
-    <FormField id={id} label={label}>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={FIELD_CONTROL_CLASS}
-      >
-        <option value="">{emptyOptionLabel}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </FormField>
-  )
-}
-
-function TextAreaField({ id, label, value, onChange, hint }) {
-  return (
-    <FormField id={id} label={label} hint={hint}>
-      <textarea
-        id={id}
-        rows={4}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-describedby={hintIdFor(id)}
-        className={FIELD_CONTROL_CLASS}
-      />
-    </FormField>
-  )
-}
 
 // Ships the card picker, the details form, the submit block,
 // POST /api/listings, and the valuation hint beside the asking price.
@@ -127,7 +23,6 @@ function CreateListingPage({ authStatus }) {
   const isSignedIn = authStatus === 'signedIn'
   const navigate = useNavigate()
 
-  const [cardSearchDraft, setCardSearchDraft] = useState('')
   // Separate from the draft, exactly as FilterBar separates draft from
   // committed. '' is the idle state, distinct from a search that ran and
   // found nothing.
@@ -155,15 +50,6 @@ function CreateListingPage({ authStatus }) {
   // true before any search has run, and without this guard the idle state
   // would render as a zero-result EmptyState instead of the idle hint.
   const cardResultsLoaded = hasSearchedCards && !cardSearchLoading && !cardSearchError
-  const cardEmptyState =
-    cardResultsLoaded && cardResults.length === 0
-      ? cardSearchEmptyStateCopy(committedCardQuery)
-      : null
-
-  function handleCardSearchSubmit(event) {
-    event.preventDefault()
-    setCommittedCardQuery(cardSearchDraft.trim())
-  }
 
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [blockedField, setBlockedField] = useState(null)
@@ -192,6 +78,15 @@ function CreateListingPage({ authStatus }) {
   } = useFetch(valuationPath)
   const valuationSettled = valuationGated && !valuationLoading
   const valuationIsNull = Boolean(valuationData) && valuationData.marketPrice === null
+  const valuationHint = valuationSettled && (
+    <ValuationHint
+      hintId={askingPriceHintId}
+      error={valuationError}
+      isNull={valuationIsNull}
+      marketPrice={valuationData?.marketPrice}
+      onCheckAgain={refetchValuation}
+    />
+  )
 
   // Tracks whether this component is still mounted across the POST's
   // await — the same gap ListingDetailPage's handleMessageSeller guards.
@@ -271,149 +166,29 @@ function CreateListingPage({ authStatus }) {
 
       {isSignedIn && (
         <>
-          <section className="space-y-4 rounded border border-zinc-200 p-4">
-            <h2 className="text-base font-medium text-zinc-900">{choosePanelHeading}</h2>
+          <CardPicker
+            committedQuery={committedCardQuery}
+            loaded={cardResultsLoaded}
+            results={cardResults}
+            error={cardSearchError}
+            onSearch={setCommittedCardQuery}
+            onRetry={refetchCardSearch}
+            selectedCard={selectedCard}
+            onSelect={setSelectedCard}
+            searchRef={cardSearchRef}
+          />
 
-            {/* A sibling of the details form arriving in a later step, never
-                nested — HTML forbids nested <form>, and this is what makes
-                Enter do the right thing in each form because the platform
-                enforces it, not a keydown guard. */}
-            <form
-              role="search"
-              onSubmit={handleCardSearchSubmit}
-              className="flex items-end gap-2"
-            >
-              <FormField id="cardSearch" label={cardSearchLabel} className="flex-1">
-                <input
-                  ref={cardSearchRef}
-                  id="cardSearch"
-                  type="search"
-                  value={cardSearchDraft}
-                  onChange={(event) => setCardSearchDraft(event.target.value)}
-                  className={FIELD_CONTROL_CLASS}
-                />
-              </FormField>
-              <PrimaryButton type="submit">Search</PrimaryButton>
-            </form>
-
-            {!hasSearchedCards && (
-              <p className="text-sm text-zinc-700">{cardSearchIdleHint}</p>
-            )}
-
-            {cardSearchError && (
-              <ErrorNotice message={cardSearchError.message} onRetry={refetchCardSearch} />
-            )}
-
-            {cardEmptyState && (
-              <EmptyState heading={cardEmptyState.heading} body={cardEmptyState.body} />
-            )}
-
-            {cardResultsLoaded && cardResults.length > 0 && (
-              <ul className="space-y-2">
-                {cardResults.map((card) => (
-                  <CardResult
-                    key={card.id}
-                    card={card}
-                    isSelected={selectedCard?.id === card.id}
-                    onSelect={setSelectedCard}
-                  />
-                ))}
-              </ul>
-            )}
-
-            {selectedCard && (
-              <p className="text-sm text-zinc-700">{selectedCardLabel(selectedCard.cardName)}</p>
-            )}
-          </section>
-
-          <form
+          <ListingDetailsForm
+            draft={draft}
+            onFieldChange={updateDraft}
             onSubmit={handleCreateSubmit}
-            className="space-y-4 rounded border border-zinc-200 p-4"
-          >
-            <h2 className="text-base font-medium text-zinc-900">{describePanelHeading}</h2>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <SelectField
-                id="condition"
-                label={conditionFieldLabel}
-                emptyOptionLabel={conditionEmptyOptionLabel}
-                options={CONDITION_OPTIONS}
-                value={draft.condition}
-                onChange={(value) => updateDraft('condition', value)}
-              />
-              <SelectField
-                id="printing"
-                label={printingFieldLabel}
-                emptyOptionLabel={printingEmptyOptionLabel}
-                options={PRINTING_OPTIONS}
-                value={draft.printing}
-                onChange={(value) => updateDraft('printing', value)}
-              />
-              {/* Plain text + inputMode="decimal", not a native numeric
-                  input — FilterBar's price fields use the same shape, for
-                  the same reason: a numeric input reads back '' the moment
-                  the browser can't sanitize what was typed. */}
-              <TextField
-                id="askingPrice"
-                label={askingPriceFieldLabel}
-                value={draft.askingPrice}
-                onChange={(value) => updateDraft('askingPrice', value)}
-                ref={askingPriceRef}
-                type="text"
-                inputMode="decimal"
-                describedBy={valuationSettled ? askingPriceHintId : undefined}
-              />
-              <TextField
-                id="location"
-                label={locationFieldLabel}
-                value={draft.location}
-                onChange={(value) => updateDraft('location', value)}
-              />
-            </div>
-
-            {/* Deliberately outside the role="status" live region: this
-                changes on every condition/printing toggle, and announcing it
-                would interrupt the form for advisory information. Wired by
-                aria-describedby on the asking-price input instead. */}
-            {valuationSettled && (
-              <div className="flex flex-wrap items-center gap-2">
-                <p id={askingPriceHintId} className="text-sm text-zinc-700">
-                  {valuationError
-                    ? // A failed valuation is advisory, not a blocked form:
-                      // the server's text verbatim in a muted line, never
-                      // ErrorNotice — that role="alert" would announce over
-                      // the form and imply create is broken when it isn't.
-                      valuationError.message
-                    : valuationIsNull
-                      ? marketPriceUnavailableHint
-                      : valuationData && marketPriceHint(valuationData.marketPrice)}
-                </p>
-                {valuationIsNull && (
-                  <SecondaryButton onClick={refetchValuation}>
-                    {checkValuationAgainLabel}
-                  </SecondaryButton>
-                )}
-              </div>
-            )}
-
-            <TextAreaField
-              id="description"
-              label={descriptionFieldLabel}
-              value={draft.description}
-              onChange={(value) => updateDraft('description', value)}
-              hint={descriptionHint(draft.description.length)}
-            />
-
-            <PrimaryButton type="submit" disabled={posting}>
-              Create listing
-            </PrimaryButton>
-
-            {blockedField && (
-              <p className="text-sm text-zinc-700">{submitBlockMessage(blockedField)}</p>
-            )}
-
-            {postError && <ErrorNotice message={postError.message} onRetry={handleCreateSubmit} />}
-          </form>
+            posting={posting}
+            blockedField={blockedField}
+            postError={postError}
+            askingPriceRef={askingPriceRef}
+            askingPriceDescribedBy={valuationSettled ? askingPriceHintId : undefined}
+            valuationHint={valuationHint}
+          />
         </>
       )}
     </div>
