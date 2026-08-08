@@ -103,9 +103,8 @@ function ListingImagesPage({ authStatus, user }) {
             <EmptyState heading={emptyPhotosCopy.heading} body={emptyPhotosCopy.body} />
           )}
 
-          {/* A non-owner sees this line instead of the upload panel. The
-              server remains the real enforcement either way — this client
-              gate is cosmetic. */}
+          {/* The server remains the real enforcement either way — this
+              client gate is cosmetic. */}
           {isOwner ? (
             <UploadPhotoPanel listingId={id} onUploaded={refetch} />
           ) : (

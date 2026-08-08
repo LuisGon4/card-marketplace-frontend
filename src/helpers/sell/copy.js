@@ -1,6 +1,5 @@
 // Copy the user reads on the create-listing flow. Kept out of JSX so this
-// file is the single source of truth for each case (CLAUDE.md). The
-// valuation and upload strings arrive with the steps that render them.
+// file is the single source of truth for each case (CLAUDE.md).
 
 import { PRICE_FORMAT_HINT, formatPrice } from '../../lib/listings'
 

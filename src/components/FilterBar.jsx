@@ -54,8 +54,8 @@ function TextFilterField({
 }
 
 // One shape for every single-select enum filter (condition, printing).
-// `anyLabel` is the value="" row's text; `options` is one of the
-// CONDITION_OPTIONS / PRINTING_OPTIONS arrays from src/lib/listings.js.
+// `options` is one of the CONDITION_OPTIONS / PRINTING_OPTIONS arrays
+// from src/lib/listings.js.
 function SelectFilterField({ id, name, label, anyLabel, options, value, onChange }) {
   return (
     <FormField id={id} label={label}>
