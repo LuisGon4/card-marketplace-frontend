@@ -3,10 +3,18 @@
 // Previous/Next — six pasted copies of one class string. Always
 // type="button" (none of these submit a form). The disabled: pair is inert
 // on the four callers that never pass `disabled`, and is what the pager's
-// two need.
-function SecondaryButton({ disabled, onClick, children }) {
+// two need. `ref` is a plain prop (React 19 — no forwardRef needed),
+// mirroring PrimaryButton and PageHeading — owner-actions' delete/reactivate
+// trigger uses it to restore focus once its mutation settles. `...rest`
+// spreads onto the button so a disclosure trigger can carry
+// aria-expanded/aria-controls/aria-describedby without a second button
+// component; it is spread before the explicit props so none of them can be
+// overridden by an accidental collision.
+function SecondaryButton({ ref, disabled, onClick, children, ...rest }) {
   return (
     <button
+      {...rest}
+      ref={ref}
       type="button"
       disabled={disabled}
       onClick={onClick}

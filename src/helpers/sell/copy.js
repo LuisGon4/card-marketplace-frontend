@@ -176,3 +176,26 @@ export function listingStatusLine(isActive) {
     ? 'Active — visible in browse.'
     : 'Inactive — hidden from browse. Reactivate it to edit or add photos.'
 }
+
+// The single status button's label follows `isActive` directly — these two
+// are read at the one call site, never behind a copy function, so the
+// ternary that picks between them stays visibly a label choice and not a
+// second gate.
+export const deleteListingLabel = 'Delete listing'
+export const reactivateListingLabel = 'Reactivate listing'
+
+// The one place soft-delete is explained to the user.
+export const deleteConfirmExplanation =
+  'Delete this listing? It stays in your list as inactive and you can reactivate it later.'
+
+export const confirmDeleteLabel = 'Yes, delete listing'
+export const cancelDeleteLabel = 'Keep listing'
+
+const PENDING_ACTION_TEXT = {
+  deleting: 'Deleting listing…',
+  reactivating: 'Reactivating listing…',
+}
+
+export function pendingActionText(action) {
+  return PENDING_ACTION_TEXT[action] ?? null
+}
