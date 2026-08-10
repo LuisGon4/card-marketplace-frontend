@@ -144,3 +144,35 @@ const UPLOAD_ERROR_PREFIX = {
 export function uploadErrorLine(stage, message) {
   return `${UPLOAD_ERROR_PREFIX[stage]}: ${message}`
 }
+
+// Copy for the my-listings page.
+
+export const myListingsPageHeading = 'My listings'
+
+export const signedOutMyListingsCopy = {
+  heading: 'Sign in to see your listings',
+  body: 'Use Sign in at the top of the page to view and manage what you have listed.',
+}
+
+export const emptyMyListingsCopy = {
+  heading: 'No listings yet',
+  body: 'List a card to see it here.',
+}
+
+export const loadingMyListingsText = 'Loading your listings…'
+
+export function myListingsSummary(total, inactiveCount) {
+  const listingWord = total === 1 ? 'listing' : 'listings'
+  const base = `${total} ${listingWord}`
+  return inactiveCount > 0 ? `${base} — ${inactiveCount} inactive` : base
+}
+
+// Every row shows a status line, including active ones — an absence would
+// make "active" invisible to anyone who hasn't seen an inactive row for
+// contrast, and no screen reader announces an absence. One function over
+// the two-row table, so the two cases cannot drift apart.
+export function listingStatusLine(isActive) {
+  return isActive
+    ? 'Active — visible in browse.'
+    : 'Inactive — hidden from browse. Reactivate it to edit or add photos.'
+}

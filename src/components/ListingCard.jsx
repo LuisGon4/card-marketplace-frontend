@@ -19,6 +19,7 @@ function ListingCard({
   sellerUsername,
   thumbnailUrl,
   backTo,
+  linkTitle = true,
 }) {
   return (
     // h-full + flex column so every card fills its grid row and the seller
@@ -44,13 +45,22 @@ function ListingCard({
               positioned, so removing `relative` from the article makes the
               overlay resolve against the viewport instead, stretching this
               one listing's click target across most of the page. */}
-          <Link
-            to={`/listings/${id}`}
-            state={{ backTo }}
-            className="text-zinc-900 hover:underline after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            {cardName}
-          </Link>
+          {linkTitle ? (
+            <Link
+              to={`/listings/${id}`}
+              state={{ backTo }}
+              className="text-zinc-900 hover:underline after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            >
+              {cardName}
+            </Link>
+          ) : (
+            // An inactive listing has no detail page to link to — GET
+            // /api/listings/{id} 404s for everyone, owner included
+            // (BACKEND.md § Listings). Without this branch the title's
+            // stretched overlay above would make the whole card a
+            // full-card click target to that 404.
+            cardName
+          )}
         </h2>
         <p className="text-sm text-zinc-700">{conditionPrintingLabel(condition, printing)}</p>
       </div>
