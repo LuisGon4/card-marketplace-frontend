@@ -92,7 +92,7 @@ function ListingCard({
     <article className="relative flex h-full flex-col rounded border border-zinc-200 p-4">
       {children ? (
         <div className="flex flex-col gap-4 sm:flex-row">
-          <div className="flex flex-1 flex-col">{content}</div>
+          <div className="flex flex-1 flex-col sm:mx-auto sm:max-w-xs">{content}</div>
           {/* relative lifts these controls above the title link's
               after:inset-0 overlay: both are z-index: auto positioned boxes,
               so the later one in tree order wins, and this slot is after the
