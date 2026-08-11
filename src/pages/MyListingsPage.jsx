@@ -55,65 +55,66 @@ function MyListingRow({
   const explanationId = hintIdFor(`delete-${listing.id}-explanation`)
 
   return (
-    <li className="space-y-2">
-      <ListingCard {...listing} linkTitle={listing.isActive} capImage />
-      <p className="text-sm text-zinc-700">{listingStatusLine(listing.isActive)}</p>
+    <li>
+      <ListingCard {...listing} linkTitle={listing.isActive} capImage>
+        <p className="text-sm text-zinc-700">{listingStatusLine(listing.isActive)}</p>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {/* editGate, never a local listing.isActive test — the row's link
-            asks the same question EditListingPage's gate branch and its
-            message key answer, so all three can't name different cases. */}
-        {editGate(listing) === null && (
-          <TextLink to={`/listings/${listing.id}/edit`}>Edit details</TextLink>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* editGate, never a local listing.isActive test — the row's link
+              asks the same question EditListingPage's gate branch and its
+              message key answer, so all three can't name different cases. */}
+          {editGate(listing) === null && (
+            <TextLink to={`/listings/${listing.id}/edit`}>Edit details</TextLink>
+          )}
 
-        {/* canAddPhotos, never editGate or a local listing.isActive test —
-            the two gates agree today but are refused for unrelated reasons
-            (helpers/sell/gates.js), and this link's condition must track
-            only its own. */}
-        {canAddPhotos(listing) && (
-          <TextLink to={`/listings/${listing.id}/images`}>Add photos</TextLink>
-        )}
+          {/* canAddPhotos, never editGate or a local listing.isActive test —
+              the two gates agree today but are refused for unrelated reasons
+              (helpers/sell/gates.js), and this link's condition must track
+              only its own. */}
+          {canAddPhotos(listing) && (
+            <TextLink to={`/listings/${listing.id}/images`}>Add photos</TextLink>
+          )}
 
-        {/* One element whose label follows isActive, never two
-            conditionally-rendered buttons. React would in fact reuse this
-            same DOM node across the ternary today, but a later edit (a key,
-            a wrapper around one branch) can silently split it in two — and
-            the symptom, focus dropping to <body> right after a successful
-            delete, won't look connected to that change. This button is
-            also never `disabled`: it is the focus-restore target below,
-            and a focused element that goes disabled drops focus to <body>
-            in Chromium. Re-entrancy is guarded inside the handlers
-            instead. */}
-        <SecondaryButton
-          ref={triggerRef}
-          aria-expanded={listing.isActive ? isConfirming : undefined}
-          aria-controls={listing.isActive ? confirmId : undefined}
-          onClick={onToggleStatus}
-        >
-          {listing.isActive ? deleteListingLabel : reactivateListingLabel}
-        </SecondaryButton>
-      </div>
-
-      {isConfirming && (
-        // aria-expanded/aria-controls above, and this block itself, exist
-        // only on the active (delete) branch — reactivating discloses
-        // nothing, so it never grows a confirm block. Honest asymmetry, not
-        // an oversight.
-        <div id={confirmId} className="space-y-2">
-          <p id={explanationId} className="text-sm text-zinc-700">
-            {deleteConfirmExplanation}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <SecondaryButton ref={confirmYesRef} aria-describedby={explanationId} onClick={onConfirmDelete}>
-              {confirmDeleteLabel}
-            </SecondaryButton>
-            <SecondaryButton onClick={onCancelDelete}>{cancelDeleteLabel}</SecondaryButton>
-          </div>
+          {/* One element whose label follows isActive, never two
+              conditionally-rendered buttons. React would in fact reuse this
+              same DOM node across the ternary today, but a later edit (a key,
+              a wrapper around one branch) can silently split it in two — and
+              the symptom, focus dropping to <body> right after a successful
+              delete, won't look connected to that change. This button is
+              also never `disabled`: it is the focus-restore target below,
+              and a focused element that goes disabled drops focus to <body>
+              in Chromium. Re-entrancy is guarded inside the handlers
+              instead. */}
+          <SecondaryButton
+            ref={triggerRef}
+            aria-expanded={listing.isActive ? isConfirming : undefined}
+            aria-controls={listing.isActive ? confirmId : undefined}
+            onClick={onToggleStatus}
+          >
+            {listing.isActive ? deleteListingLabel : reactivateListingLabel}
+          </SecondaryButton>
         </div>
-      )}
 
-      {rowError && <ErrorNotice message={rowError.message} onRetry={onRetryAction} />}
+        {isConfirming && (
+          // aria-expanded/aria-controls above, and this block itself, exist
+          // only on the active (delete) branch — reactivating discloses
+          // nothing, so it never grows a confirm block. Honest asymmetry, not
+          // an oversight.
+          <div id={confirmId} className="space-y-2">
+            <p id={explanationId} className="text-sm text-zinc-700">
+              {deleteConfirmExplanation}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <SecondaryButton ref={confirmYesRef} aria-describedby={explanationId} onClick={onConfirmDelete}>
+                {confirmDeleteLabel}
+              </SecondaryButton>
+              <SecondaryButton onClick={onCancelDelete}>{cancelDeleteLabel}</SecondaryButton>
+            </div>
+          </div>
+        )}
+
+        {rowError && <ErrorNotice message={rowError.message} onRetry={onRetryAction} />}
+      </ListingCard>
     </li>
   )
 }
