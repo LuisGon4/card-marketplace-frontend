@@ -56,7 +56,7 @@ function MyListingRow({
 
   return (
     <li className="space-y-2">
-      <ListingCard {...listing} linkTitle={listing.isActive} />
+      <ListingCard {...listing} linkTitle={listing.isActive} capImage />
       <p className="text-sm text-zinc-700">{listingStatusLine(listing.isActive)}</p>
 
       <div className="flex flex-wrap items-center gap-2">

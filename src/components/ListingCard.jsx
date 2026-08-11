@@ -20,6 +20,10 @@ function ListingCard({
   thumbnailUrl,
   backTo,
   linkTitle = true,
+  // /listings/mine is a single full-width column, unlike browse's grid, so
+  // the square image would otherwise stretch to the page's full width.
+  // Defaults to false so browse's rendering is untouched.
+  capImage = false,
 }) {
   return (
     // h-full + flex column so every card fills its grid row and the seller
@@ -28,7 +32,7 @@ function ListingCard({
     // relative anchors the title link's stretched overlay below — see the
     // comment there.
     <article className="relative flex h-full flex-col rounded border border-zinc-200 p-4">
-      <ListingImage src={thumbnailUrl} alt={cardName} loading="lazy" />
+      <ListingImage src={thumbnailUrl} alt={cardName} loading="lazy" capped={capImage} />
 
       <div className="mt-3 space-y-1">
         {/* h2, not h3: the page's only other heading is BrowsePage's h1, so
