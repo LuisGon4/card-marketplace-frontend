@@ -78,9 +78,8 @@ export function apiGet(path, { signal } = {}) {
 
 // apiPost is exercised by the conversation-start flow (POST
 // /api/conversations) and, from the create-listing cycle, by
-// POST /api/listings. apiPatch and apiDelete are still unexercised —
-// TODO(Luis): review before their first mutation ships (the edit/delete/
-// reactivate listing cycle).
+// POST /api/listings. apiPatch and apiDelete are exercised by the edit,
+// delete and reactivate listing flows.
 //
 // Ruled on by Luis, 2026-08-03: when the XSRF-TOKEN cookie is absent,
 // `request` above omits the header and sends the write anyway, which 403s

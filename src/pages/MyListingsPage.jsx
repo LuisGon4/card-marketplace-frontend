@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { apiDelete, apiPatch } from '../api/client'
 import { hintIdFor } from '../lib/fields'
-import { editGate } from '../helpers/sell/gates'
+import { canAddPhotos, editGate } from '../helpers/sell/gates'
 import ListingCard from '../components/ListingCard'
 import PageHeading from '../components/PageHeading'
 import ErrorNotice from '../components/ErrorNotice'
@@ -65,6 +65,14 @@ function MyListingRow({
             message key answer, so all three can't name different cases. */}
         {editGate(listing) === null && (
           <TextLink to={`/listings/${listing.id}/edit`}>Edit details</TextLink>
+        )}
+
+        {/* canAddPhotos, never editGate or a local listing.isActive test —
+            the two gates agree today but are refused for unrelated reasons
+            (helpers/sell/gates.js), and this link's condition must track
+            only its own. */}
+        {canAddPhotos(listing) && (
+          <TextLink to={`/listings/${listing.id}/images`}>Add photos</TextLink>
         )}
 
         {/* One element whose label follows isActive, never two
