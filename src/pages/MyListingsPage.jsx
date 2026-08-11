@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { apiDelete, apiPatch } from '../api/client'
 import { hintIdFor } from '../lib/fields'
+import { editGate } from '../helpers/sell/gates'
 import ListingCard from '../components/ListingCard'
 import PageHeading from '../components/PageHeading'
 import ErrorNotice from '../components/ErrorNotice'
@@ -59,6 +60,13 @@ function MyListingRow({
       <p className="text-sm text-zinc-700">{listingStatusLine(listing.isActive)}</p>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* editGate, never a local listing.isActive test — the row's link
+            asks the same question EditListingPage's gate branch and its
+            message key answer, so all three can't name different cases. */}
+        {editGate(listing) === null && (
+          <TextLink to={`/listings/${listing.id}/edit`}>Edit details</TextLink>
+        )}
+
         {/* One element whose label follows isActive, never two
             conditionally-rendered buttons. React would in fact reuse this
             same DOM node across the ternary today, but a later edit (a key,

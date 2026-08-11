@@ -3,6 +3,7 @@ import AppLayout from './components/AppLayout'
 import BrowsePage from './pages/BrowsePage'
 import CreateListingPage from './pages/CreateListingPage'
 import MyListingsPage from './pages/MyListingsPage'
+import EditListingPage from './pages/EditListingPage'
 import ListingImagesPage from './pages/ListingImagesPage'
 import ListingDetailPage from './pages/ListingDetailPage'
 import ConversationsPage from './pages/ConversationsPage'
@@ -32,6 +33,10 @@ function App() {
         <Route
           path="/listings/:id/images"
           element={<ListingImagesPage authStatus={authStatus} user={user} />}
+        />
+        <Route
+          path="/listings/:id/edit"
+          element={<EditListingPage authStatus={authStatus} />}
         />
         <Route
           path="/listings/:id"

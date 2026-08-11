@@ -1,7 +1,7 @@
 // Copy the user reads on the create-listing flow. Kept out of JSX so this
 // file is the single source of truth for each case (CLAUDE.md).
 
-import { PRICE_FORMAT_HINT, formatPrice } from '../../lib/listings'
+import { PRICE_FORMAT_HINT, formatPrice, conditionPrintingLabel } from '../../lib/listings'
 
 export const pageHeading = 'Sell a card'
 
@@ -199,3 +199,46 @@ const PENDING_ACTION_TEXT = {
 export function pendingActionText(action) {
   return PENDING_ACTION_TEXT[action] ?? null
 }
+
+// Copy for the edit-listing page.
+
+export const editListingPageHeading = 'Edit listing'
+
+// The subline under the h1 — the listing's own name, so a user who arrived
+// from an inactive row (which still shows this once the gate has read it)
+// can confirm which listing they're looking at.
+export function editListingSubline(cardName, condition, printing) {
+  return `${cardName} · ${conditionPrintingLabel(condition, printing)}`
+}
+
+export const editListingDetailsHeading = 'Listing details'
+
+// UpdateListingRequest has no condition/printing/location/card keys — this
+// is the one line that says so, rather than rendering those fields disabled.
+export const editFixedFieldsNote =
+  "Condition, printing and location can't be changed after a listing is created."
+
+export const savingChangesText = 'Saving changes…'
+
+// Keyed by editGate's return value (helpers/sell/gates.js) so the branch
+// and its wording can never name different cases.
+const EDIT_GATE_COPY = {
+  notYours: {
+    heading: 'Not one of your listings',
+    body: "You can only edit listings you're selling.",
+  },
+  inactive: {
+    heading: 'Reactivate this listing to edit it',
+    body: "Inactive listings can't be edited. Reactivate it from My listings, then come back here.",
+  },
+}
+
+export function editGateMessage(reason) {
+  return EDIT_GATE_COPY[reason] ?? null
+}
+
+// Two distinct labels for the same destination: an action out of a gate's
+// EmptyState reads as a call to act, the one under a spent form reads as a
+// return trip.
+export const myListingsLinkLabel = 'My listings'
+export const backToMyListingsLabel = 'Back to my listings'
