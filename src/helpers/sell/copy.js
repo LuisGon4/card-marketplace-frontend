@@ -1,7 +1,7 @@
 // Copy the user reads on the create-listing flow. Kept out of JSX so this
 // file is the single source of truth for each case (CLAUDE.md).
 
-import { PRICE_FORMAT_HINT, formatPrice } from '../../lib/listings'
+import { PRICE_FORMAT_HINT, formatPrice, conditionPrintingLabel } from '../../lib/listings'
 
 export const pageHeading = 'Sell a card'
 
@@ -144,3 +144,101 @@ const UPLOAD_ERROR_PREFIX = {
 export function uploadErrorLine(stage, message) {
   return `${UPLOAD_ERROR_PREFIX[stage]}: ${message}`
 }
+
+// Copy for the my-listings page.
+
+export const myListingsPageHeading = 'My listings'
+
+export const signedOutMyListingsCopy = {
+  heading: 'Sign in to see your listings',
+  body: 'Use Sign in at the top of the page to view and manage what you have listed.',
+}
+
+export const emptyMyListingsCopy = {
+  heading: 'No listings yet',
+  body: 'List a card to see it here.',
+}
+
+export const loadingMyListingsText = 'Loading your listings…'
+
+export function myListingsSummary(total, inactiveCount) {
+  const listingWord = total === 1 ? 'listing' : 'listings'
+  const base = `${total} ${listingWord}`
+  return inactiveCount > 0 ? `${base} — ${inactiveCount} inactive` : base
+}
+
+// Every row shows a status line, including active ones — an absence would
+// make "active" invisible to anyone who hasn't seen an inactive row for
+// contrast, and no screen reader announces an absence. One function over
+// the two-row table, so the two cases cannot drift apart.
+export function listingStatusLine(isActive) {
+  return isActive
+    ? 'Active — visible in browse.'
+    : 'Inactive — hidden from browse. Reactivate it to edit or add photos.'
+}
+
+// The single status button's label follows `isActive` directly — these two
+// are read at the one call site, never behind a copy function, so the
+// ternary that picks between them stays visibly a label choice and not a
+// second gate.
+export const deleteListingLabel = 'Delete listing'
+export const reactivateListingLabel = 'Reactivate listing'
+
+// The one place soft-delete is explained to the user.
+export const deleteConfirmExplanation =
+  'Delete this listing? It stays in your list as inactive and you can reactivate it later.'
+
+export const confirmDeleteLabel = 'Yes, delete listing'
+export const cancelDeleteLabel = 'Keep listing'
+
+const PENDING_ACTION_TEXT = {
+  deleting: 'Deleting listing…',
+  reactivating: 'Reactivating listing…',
+}
+
+export function pendingActionText(action) {
+  return PENDING_ACTION_TEXT[action] ?? null
+}
+
+// Copy for the edit-listing page.
+
+export const editListingPageHeading = 'Edit listing'
+
+// The subline under the h1 — the listing's own name, so a user who arrived
+// from an inactive row (which still shows this once the gate has read it)
+// can confirm which listing they're looking at.
+export function editListingSubline(cardName, condition, printing) {
+  return `${cardName} · ${conditionPrintingLabel(condition, printing)}`
+}
+
+export const editListingDetailsHeading = 'Listing details'
+
+// UpdateListingRequest has no condition/printing/location/card keys — this
+// is the one line that says so, rather than rendering those fields disabled.
+export const editFixedFieldsNote =
+  "Condition, printing and location can't be changed after a listing is created."
+
+export const savingChangesText = 'Saving changes…'
+
+// Keyed by editGate's return value (helpers/sell/gates.js) so the branch
+// and its wording can never name different cases.
+const EDIT_GATE_COPY = {
+  notYours: {
+    heading: 'Not one of your listings',
+    body: "You can only edit listings you're selling.",
+  },
+  inactive: {
+    heading: 'Reactivate this listing to edit it',
+    body: "Inactive listings can't be edited. Reactivate it from My listings, then come back here.",
+  },
+}
+
+export function editGateMessage(reason) {
+  return EDIT_GATE_COPY[reason] ?? null
+}
+
+// Two distinct labels for the same destination: an action out of a gate's
+// EmptyState reads as a call to act, the one under a spent form reads as a
+// return trip.
+export const myListingsLinkLabel = 'My listings'
+export const backToMyListingsLabel = 'Back to my listings'

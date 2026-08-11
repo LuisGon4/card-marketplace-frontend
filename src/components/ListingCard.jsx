@@ -19,15 +19,16 @@ function ListingCard({
   sellerUsername,
   thumbnailUrl,
   backTo,
+  linkTitle = true,
+  // /listings/mine is a single full-width column, unlike browse's grid, so
+  // the square image would otherwise stretch to the page's full width.
+  // Defaults to false so browse's rendering is untouched.
+  capImage = false,
+  children,
 }) {
-  return (
-    // h-full + flex column so every card fills its grid row and the seller
-    // meta pins to the bottom (mt-auto). Without this, cards with a shorter
-    // description — or none at all — end up shorter than their neighbours.
-    // relative anchors the title link's stretched overlay below — see the
-    // comment there.
-    <article className="relative flex h-full flex-col rounded border border-zinc-200 p-4">
-      <ListingImage src={thumbnailUrl} alt={cardName} loading="lazy" />
+  const content = (
+    <>
+      <ListingImage src={thumbnailUrl} alt={cardName} loading="lazy" capped={capImage} />
 
       <div className="mt-3 space-y-1">
         {/* h2, not h3: the page's only other heading is BrowsePage's h1, so
@@ -44,13 +45,22 @@ function ListingCard({
               positioned, so removing `relative` from the article makes the
               overlay resolve against the viewport instead, stretching this
               one listing's click target across most of the page. */}
-          <Link
-            to={`/listings/${id}`}
-            state={{ backTo }}
-            className="text-zinc-900 hover:underline after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          >
-            {cardName}
-          </Link>
+          {linkTitle ? (
+            <Link
+              to={`/listings/${id}`}
+              state={{ backTo }}
+              className="text-zinc-900 hover:underline after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            >
+              {cardName}
+            </Link>
+          ) : (
+            // An inactive listing has no detail page to link to — GET
+            // /api/listings/{id} 404s for everyone, owner included
+            // (BACKEND.md § Listings). Without this branch the title's
+            // stretched overlay above would make the whole card a
+            // full-card click target to that 404.
+            cardName
+          )}
         </h2>
         <p className="text-sm text-zinc-700">{conditionPrintingLabel(condition, printing)}</p>
       </div>
@@ -70,6 +80,31 @@ function ListingCard({
         <p>{sellerUsername}</p>
         <p>{location}</p>
       </div>
+    </>
+  )
+
+  return (
+    // h-full + flex column so every card fills its grid row and the seller
+    // meta pins to the bottom (mt-auto). Without this, cards with a shorter
+    // description — or none at all — end up shorter than their neighbours.
+    // relative anchors the title link's stretched overlay below — see the
+    // comment there.
+    <article className="relative flex h-full flex-col rounded border border-zinc-200 p-4">
+      {children ? (
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="flex flex-1 flex-col sm:mx-auto sm:max-w-xs">{content}</div>
+          {/* relative lifts these controls above the title link's
+              after:inset-0 overlay: both are z-index: auto positioned boxes,
+              so the later one in tree order wins, and this slot is after the
+              <h2> above — it must stay after it. No z-index is needed or
+              wanted. */}
+          <div className="relative space-y-2 border-t border-zinc-200 pt-3 sm:w-64 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
+            {children}
+          </div>
+        </div>
+      ) : (
+        content
+      )}
     </article>
   )
 }

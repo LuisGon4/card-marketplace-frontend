@@ -2,6 +2,8 @@ import { Route, Routes } from 'react-router'
 import AppLayout from './components/AppLayout'
 import BrowsePage from './pages/BrowsePage'
 import CreateListingPage from './pages/CreateListingPage'
+import MyListingsPage from './pages/MyListingsPage'
+import EditListingPage from './pages/EditListingPage'
 import ListingImagesPage from './pages/ListingImagesPage'
 import ListingDetailPage from './pages/ListingDetailPage'
 import ConversationsPage from './pages/ConversationsPage'
@@ -20,16 +22,21 @@ function App() {
       <Routes>
         <Route path="/" element={<BrowsePage />} />
         {/* Declared above /listings/:id for the reader, though React Router
-            ranks a static segment ("new") above a dynamic one regardless of
-            declaration order — that ranking, not the ordering here, is what
-            keeps this route from being swallowed by :id. */}
+            ranks a static segment ("new", "mine") above a dynamic one
+            regardless of declaration order — that ranking, not the ordering
+            here, is what keeps these routes from being swallowed by :id. */}
         <Route
           path="/listings/new"
           element={<CreateListingPage authStatus={authStatus} user={user} />}
         />
+        <Route path="/listings/mine" element={<MyListingsPage authStatus={authStatus} />} />
         <Route
           path="/listings/:id/images"
           element={<ListingImagesPage authStatus={authStatus} user={user} />}
+        />
+        <Route
+          path="/listings/:id/edit"
+          element={<EditListingPage authStatus={authStatus} />}
         />
         <Route
           path="/listings/:id"
