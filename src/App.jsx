@@ -8,6 +8,8 @@ import ListingImagesPage from './pages/ListingImagesPage'
 import ListingDetailPage from './pages/ListingDetailPage'
 import ConversationsPage from './pages/ConversationsPage'
 import ConversationThreadPage from './pages/ConversationThreadPage'
+import TermsPage from './pages/TermsPage'
+import PrivacyPage from './pages/PrivacyPage'
 import NotFoundPage from './pages/NotFoundPage'
 import { useAuthStatus } from './hooks/useAuthStatus'
 
@@ -47,6 +49,8 @@ function App() {
           path="/conversations/:id"
           element={<ConversationThreadPage authStatus={authStatus} user={user} />}
         />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppLayout>
