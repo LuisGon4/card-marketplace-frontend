@@ -11,10 +11,12 @@ function handleSignIn() {
 }
 
 // Renders the right-hand auth slot from the three-valued useAuthStatus()
-// result. `checking` is a neutral placeholder sized like
-// the other two states so resolving it doesn't reflow the header, and it
-// deliberately reads as neither "signed in" nor "signed out" while the
-// probe (GET /api/users/me) is in flight.
+// result. `checking` is a neutral placeholder that deliberately reads as
+// neither "signed in" nor "signed out" while the probe (GET /api/users/me) is
+// in flight. It is NOT height-matched to the signed-out state: that branch
+// carries the sign-in agreement line and is deliberately taller, so resolving
+// `checking` to signed-out reflows the header once per page load. The
+// header's flex-wrap and gap-y-2 absorb it.
 function AuthSlot({ authStatus, user }) {
   if (authStatus === 'signedIn') {
     // user should always be set alongside 'signedIn', but fall back rather
@@ -35,13 +37,19 @@ function AuthSlot({ authStatus, user }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleSignIn}
-      className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-    >
-      Sign in with Google
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={handleSignIn}
+        className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      >
+        Sign in with Google
+      </button>
+      <p className="max-w-xs text-right text-xs text-zinc-500">
+        By signing in you agree to the <TextLink to="/terms">Terms</TextLink> and{' '}
+        <TextLink to="/privacy">Privacy Policy</TextLink>, and confirm you are 18 or older.
+      </p>
+    </div>
   )
 }
 
@@ -59,7 +67,7 @@ function Header({ authStatus, user }) {
           {/* Gated on signedIn so it appears in the same tick the auth slot
               resolves, rather than flashing for a signed-out visitor. */}
           {authStatus === 'signedIn' && (
-            <nav className="flex items-center gap-6">
+            <nav aria-label="Main" className="flex items-center gap-6">
               <TextLink to="/listings/new">Sell a card</TextLink>
               <TextLink to="/listings/mine">My listings</TextLink>
               <TextLink to="/conversations">Conversations</TextLink>
