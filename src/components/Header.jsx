@@ -45,7 +45,7 @@ function AuthSlot({ authStatus, user }) {
       >
         Sign in with Google
       </button>
-      <p className="max-w-xs text-right text-xs text-zinc-500">
+      <p className="max-w-xs text-right text-sm text-zinc-600">
         By signing in you agree to the <TextLink to="/terms">Terms</TextLink> and{' '}
         <TextLink to="/privacy">Privacy Policy</TextLink>, and confirm you are 18 or older.
       </p>
@@ -67,7 +67,7 @@ function Header({ authStatus, user }) {
           {/* Gated on signedIn so it appears in the same tick the auth slot
               resolves, rather than flashing for a signed-out visitor. */}
           {authStatus === 'signedIn' && (
-            <nav aria-label="Main" className="flex items-center gap-6">
+            <nav aria-label="Primary" className="flex items-center gap-6">
               <TextLink to="/listings/new">Sell a card</TextLink>
               <TextLink to="/listings/mine">My listings</TextLink>
               <TextLink to="/conversations">Conversations</TextLink>
