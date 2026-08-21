@@ -62,7 +62,7 @@ function Header({ authStatus, user }) {
               landmark, and a second navigation landmark would be
               indistinguishable from the one below without labelling both. */}
           <NavLink to="/" className="text-base font-medium text-zinc-900">
-            Card Marketplace
+            CardsLocal
           </NavLink>
           {/* Gated on signedIn so it appears in the same tick the auth slot
               resolves, rather than flashing for a signed-out visitor. */}

@@ -10,7 +10,7 @@ function Footer() {
           <TextLink to="/terms">Terms</TextLink>
           <TextLink to="/privacy">Privacy</TextLink>
         </nav>
-        <span className="text-sm text-zinc-600">&copy; 2026 Card Marketplace</span>
+        <span className="text-sm text-zinc-600">&copy; 2026 CardsLocal</span>
       </div>
     </footer>
   )
